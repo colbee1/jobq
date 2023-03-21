@@ -34,10 +34,19 @@ func main() {
 }
 
 func JobScheduler(jq jqs.JobServiceInterface) {
+
+    ...
+
     // Reserve at most 10 waiting jobs on topic "catalog-import"
     jobs, err := jq.Reserve(context.Background, "catalog-import", 10)
 
     // Dispatch job to workers
+    for _, job := range jobs {
+        ...
+        go JobWorker(job)
+        ...
+    }
+
     ...
 }
 
