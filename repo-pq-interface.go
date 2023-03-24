@@ -18,5 +18,17 @@ type IJobPriorityQueueRepository interface {
 	// Durable returns true when repository can survive to an application crash.
 	Durable() bool
 
+	// Topics returns list of created topics
+	Topics(ctx context.Context, offset int, limit int) ([]JobTopic, error)
+
+	TopicStats(ctx context.Context, topic JobTopic) (TopicStats, error)
+
 	Close() error
+}
+
+type TopicStats struct {
+	DateCreated    time.Time
+	DateLastPush   time.Time
+	PushTotalCount int64
+	MaxQueueLen    int64
 }

@@ -23,7 +23,7 @@ func (a *Adapter) Push(ctx context.Context, topic jobq.JobTopic, pri jobq.JobPri
 		JobID:    jid,
 	}
 
-	if time.Until(delayedAt) > 1 {
+	if time.Until(delayedAt) > time.Second {
 		jitem.heapPriority = delayedAt.Unix()
 		a.pqDelayed.Push(jitem)
 

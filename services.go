@@ -15,5 +15,11 @@ type IJobQueueService interface {
 	// Delayed returns the number of delayed jobs.
 	Delayed(ctx context.Context) (int, error)
 
+	// Topics returns list of created topics
+	Topics(ctx context.Context, offset int, limit int) ([]JobTopic, error)
+
+	// TopicStats returns some stats about topic.
+	TopicStats(ctx context.Context, topic JobTopic) (TopicStats, error)
+
 	Close() error
 }

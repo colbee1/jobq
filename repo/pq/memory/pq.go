@@ -13,7 +13,8 @@ type (
 		mu             sync.RWMutex
 		queue          JobMinHeap
 		dateCreated    time.Time
-		PushTotalCount int64
+		dateLastPush   time.Time
+		pushTotalCount int64
 		maxQueueLen    int64
 	}
 
@@ -22,12 +23,6 @@ type (
 		Topic        jobq.JobTopic
 		Priority     jobq.JobPriority
 		JobID        jobq.JobID
-	}
-
-	JobQueueStats struct {
-		DateCreated    time.Time
-		PushTotalCount int64
-		MaxQueueLen    int64
 	}
 )
 
@@ -41,13 +36,14 @@ func newJobQueue() *JobQueue {
 	return jq
 }
 
-func (pq *JobQueue) Stats() JobQueueStats {
+func (pq *JobQueue) Stats() jobq.TopicStats {
 	pq.mu.RLock()
 	defer pq.mu.RUnlock()
 
-	return JobQueueStats{
+	return jobq.TopicStats{
 		DateCreated:    pq.dateCreated,
-		PushTotalCount: pq.PushTotalCount,
+		DateLastPush:   pq.dateLastPush,
+		PushTotalCount: pq.pushTotalCount,
 		MaxQueueLen:    pq.maxQueueLen,
 	}
 }
@@ -64,7 +60,9 @@ func (pq *JobQueue) Push(jitem *JobItem) {
 	defer pq.mu.Unlock()
 
 	heap.Push(&pq.queue, jitem)
-	pq.PushTotalCount++
+
+	pq.pushTotalCount++
+	pq.dateLastPush = time.Now()
 	if l := int64(pq.queue.Len()); l > pq.maxQueueLen {
 		pq.maxQueueLen = l
 	}

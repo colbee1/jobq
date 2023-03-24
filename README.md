@@ -1,71 +1,30 @@
 # jobq
 
-jobq is a simple golang package to handle job/taks/... queue with priority and optional persistance
+!! Early development - work in progress - only for comments !!
 
-!! This a work in progress !!
+jobq is an simple embeddable golang package to handle jobs/tasks/xxx asynchronously.
 
-## Example
+Expected features:
 
-```go
-import (
-    "github.com/colbee1/jobq"
-    jqs "github.com/colbee1/jobq/service"
-    jq_job_repo "github.com/colbee1/jobq/repo/job/memory"
-    jq_pq_repo "github.com/colbee1/jobq/repo/pq/memory"
-)
+- Job is handled by a priority queue. (OK)
+- Job is pushed in a named queue, called topic. (OK)
+- Topic creation is automatic, just push on it. (OK)
+- Job can be delayed. (OK)
+- Job FSM is simple, only few status: Ready, Delayed, Reserved, Done or Cancel. (OK)
+- Job that failed is automatically retried with definable backoff behavior. (IN PROGRESS)
+- Job can be persisted by using a "durable" repository backend. (TODO)
+- Auto restart job after application crash. (TODO)
+- Job timeout. (TODO)
 
-func main() {
-    jobRepo := jq_job_repo.New()
-    pqRepo := jq_pq_repo.New()
-    jq, err := jqs.New(jobRepo, pqRepo)
+## Available job repository
 
-    // Add a new job in topic "catalog-import"
+- repo/job/memory (do not support transaction)
+- repo/pq/badger3 (IN PROGRESS)
 
-    err := jq.Enqueue(context.Backgroun, "catalog-import", 0, jobq.JobOptions{
-        Payload: []byte{"/path/to/file/data.csv"},
-    })
+## Available priority queue repository
 
-    // Add a new job in topic "welcome" but delay it's execution in at least one hour
+- repo/pq/memory (OK)
 
-    err := jq.Enqueue(context.Backgroun, "welcome", 0, jobq.JobOptions{
-        DelayedAt: time.Now().Add(time.Hour),
-        Payload: []byte{"foo@bar.com"},
-    })
-}
+## Examples
 
-func JobScheduler(jq jqs.JobServiceInterface) {
-
-    ...
-
-    // Reserve at most 10 waiting jobs on topic "catalog-import"
-    jobs, err := jq.Reserve(context.Background, "catalog-import", 10)
-
-    // Dispatch job to workers
-    for _, job := range jobs {
-        ...
-        go JobWorker(job)
-        ...
-    }
-
-    ...
-}
-
-func JobWorker(job *jqs.Job) {
-    data := job.Payload()
-
-    // do some work
-
-    // you can add message(s) to job
-    job.AppendMessage("hello world\n")
-
-    // If all goes well
-    job.Done()
-
-    // or on error
-    job.Error()
-
-    // or reschedule the job in 30 minutes
-    job.Release(time.Now().Add(30*time.Minute))
-
-}
-```
+See examples directory.

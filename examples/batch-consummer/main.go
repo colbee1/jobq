@@ -70,6 +70,20 @@ func run() error {
 	}
 	fmt.Printf("\n%d jobs are in status Reserved\n", len(jids))
 
+	// Show topic stats
+	//
+	list, err := service.Topics(context.Background(), 0, 100)
+	if err != nil {
+		return err
+	}
+	for _, topic := range list {
+		stats, err := service.TopicStats(context.Background(), topic)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("\ntopics: %s, stats:%+v\n", topic, stats)
+	}
+
 	return nil
 }
 
