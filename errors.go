@@ -1,19 +1,13 @@
 package jobq
 
 import (
-	"errors"
-	"fmt"
+	"github.com/pkg/errors"
 )
 
 var (
-	ErrPackage = errors.New("jobq")
-)
-
-var (
-	ErrSlugIsEmpty     = fmt.Errorf("%w: job slug is missing", ErrPackage)
-	ErrSlugAlreadySet  = fmt.Errorf("%w: job slug is already set", ErrPackage)
-	ErrTopicIsInvalid  = fmt.Errorf("%w: queue topic is invalid", ErrPackage)
-	ErrTopicNotFound   = fmt.Errorf("%w: topic not found", ErrPackage)
-	ErrJobNotFound     = fmt.Errorf("%w: job not found", ErrPackage)
-	ErrInvalidJobState = fmt.Errorf("%w: invalid job state", ErrPackage)
+	ErrTopicIsMissing     = errors.New("jobq: topic is missing")
+	ErrTopicNotFound      = errors.New("jobq: topic not found")
+	ErrJobNotFound        = errors.New("jobq: job not found")
+	ErrInvalidJobStatus   = errors.New("jobq: invalid job state")
+	ErrInvalidTransaction = errors.New("jobq: invalid transaction")
 )
