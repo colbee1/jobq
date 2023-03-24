@@ -2,7 +2,6 @@ package memory
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/colbee1/assertor"
@@ -10,12 +9,12 @@ import (
 	"github.com/colbee1/jobq"
 )
 
-func (a *Adapter) Push(ctx context.Context, topic jobq.JobTopic, pri jobq.JobPriority, jid jobq.JobID, delayedAt time.Time) error {
+func (a *Adapter) Push(ctx context.Context, topic jobq.JobTopic, pri jobq.JobPriority, jid jobq.JobID, delayedAt time.Time) (jobq.JobStatus, error) {
 	v := assertor.New()
 	v.Assert(ctx != nil, "context is missing")
 	v.Assert(topic != "", "topic is missing")
 	if err := v.Validate(); err != nil {
-		return err
+		return 0, err
 	}
 
 	jitem := &JobItem{
@@ -24,17 +23,11 @@ func (a *Adapter) Push(ctx context.Context, topic jobq.JobTopic, pri jobq.JobPri
 		JobID:    jid,
 	}
 
-	if !delayedAt.IsZero() {
-		delay := time.Until(delayedAt)
-		if delay > time.Second {
+	if time.Until(delayedAt) > 1 {
+		jitem.heapPriority = delayedAt.Unix()
+		a.pqDelayed.Push(jitem)
 
-			ts := delayedAt.Unix()
-			jitem.heapPriority = ts
-			a.pqDelayed.Push(jitem)
-			fmt.Printf("jid=%d is delayed at ts=%v\n", jitem.JobID, jitem.heapPriority)
-
-			return nil
-		}
+		return jobq.JobStatusDelayed, nil
 	}
 
 	pq, found := a.pqByTopic[topic]
@@ -46,5 +39,5 @@ func (a *Adapter) Push(ctx context.Context, topic jobq.JobTopic, pri jobq.JobPri
 	jitem.heapPriority = int64(jitem.Priority)
 	pq.Push(jitem)
 
-	return nil
+	return jobq.JobStatusReady, nil
 }

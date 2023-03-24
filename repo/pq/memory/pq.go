@@ -3,14 +3,18 @@ package memory
 import (
 	"container/heap"
 	"sync"
+	"time"
 
 	"github.com/colbee1/jobq"
 )
 
 type (
 	JobQueue struct {
-		mu    sync.RWMutex
-		queue JobMinHeap
+		mu             sync.RWMutex
+		queue          JobMinHeap
+		dateCreated    time.Time
+		PushTotalCount int64
+		maxQueueLen    int64
 	}
 
 	JobItem struct {
@@ -19,13 +23,33 @@ type (
 		Priority     jobq.JobPriority
 		JobID        jobq.JobID
 	}
+
+	JobQueueStats struct {
+		DateCreated    time.Time
+		PushTotalCount int64
+		MaxQueueLen    int64
+	}
 )
 
 func newJobQueue() *JobQueue {
-	jq := &JobQueue{queue: JobMinHeap{}}
+	jq := &JobQueue{
+		queue:       JobMinHeap{},
+		dateCreated: time.Now(),
+	}
 	heap.Init(&jq.queue)
 
 	return jq
+}
+
+func (pq *JobQueue) Stats() JobQueueStats {
+	pq.mu.RLock()
+	defer pq.mu.RUnlock()
+
+	return JobQueueStats{
+		DateCreated:    pq.dateCreated,
+		PushTotalCount: pq.PushTotalCount,
+		MaxQueueLen:    pq.maxQueueLen,
+	}
 }
 
 func (pq *JobQueue) Len() int {
@@ -40,6 +64,10 @@ func (pq *JobQueue) Push(jitem *JobItem) {
 	defer pq.mu.Unlock()
 
 	heap.Push(&pq.queue, jitem)
+	pq.PushTotalCount++
+	if l := int64(pq.queue.Len()); l > pq.maxQueueLen {
+		pq.maxQueueLen = l
+	}
 }
 
 func (pq *JobQueue) Pop(limit uint) ([]*JobItem, error) {

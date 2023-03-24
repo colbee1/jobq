@@ -1,8 +1,6 @@
 package memory
 
 import (
-	"fmt"
-
 	"github.com/colbee1/jobq"
 )
 
@@ -26,8 +24,6 @@ func (a *Adapter) Close() error {
 
 	// Free memory
 	a.pqByTopic = make(map[jobq.JobTopic]*JobQueue)
-
-	fmt.Printf("adapter closed\n")
 
 	return nil
 }
