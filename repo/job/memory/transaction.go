@@ -1,6 +1,6 @@
 package memory
 
-import "github.com/colbee1/jobq"
+import "github.com/colbee1/jobq/repo"
 
 // memory adapter doesn't support transaction
 
@@ -11,7 +11,7 @@ type Transaction struct {
 
 func (t *Transaction) Commit() error {
 	if t.a == nil {
-		return jobq.ErrInvalidTransaction
+		return repo.ErrInvalidTransaction
 	}
 
 	if !t.needCommit {

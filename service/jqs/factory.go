@@ -2,10 +2,10 @@ package jqs
 
 import (
 	"github.com/colbee1/assertor"
-	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo"
 )
 
-func New(jobRepo jobq.IJobRepository, pqRepo jobq.IJobPriorityQueueRepository) (*Service, error) {
+func New(jobRepo repo.IJobRepository, pqRepo repo.IJobPriorityQueueRepository) (*Service, error) {
 	v := assertor.New()
 	v.Assert(jobRepo != nil, "job repository is missing")
 	v.Assert(pqRepo != nil, "job priority queue repository is missing")

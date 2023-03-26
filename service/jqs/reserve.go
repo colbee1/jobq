@@ -7,7 +7,7 @@ import (
 )
 
 // Reserve reserves up to <limit> ready jobs
-func (s *Service) Reserve(ctx context.Context, topic jobq.JobTopic, limit int) ([]jobq.IJob, error) {
+func (s *Service) Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]jobq.IJob, error) {
 	if topic == "" {
 		topic = DefaultTopic
 	}

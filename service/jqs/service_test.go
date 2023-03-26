@@ -31,11 +31,11 @@ func TestServiceWithMemoryRepos(t *testing.T) {
 
 	ctx := context.Background()
 
-	jid, err := s.Enqueue(ctx, "", -10, jobq.DefaultJobOptions, jobq.JobPayload{})
+	jid, err := s.Enqueue(ctx, "", -10, jobq.DefaultJobOptions, jobq.Payload{})
 	require.NoError(err)
-	require.Equal(jobq.JobID(1), jid)
+	require.Equal(jobq.ID(1), jid)
 
-	jobs, err := s.GetInfos(ctx, []jobq.JobID{jid})
+	jobs, err := s.GetInfos(ctx, []jobq.ID{jid})
 	require.NoError(err)
 	require.Equal(1, len(jobs))
 	require.Equal("test", jobs[0].Options.Name)
@@ -52,7 +52,7 @@ func TestServiceWithMemoryRepos(t *testing.T) {
 	require.NoError(err)
 	require.Equal(0, len(reserved))
 
-	jobs, err = s.GetInfos(ctx, []jobq.JobID{jid})
+	jobs, err = s.GetInfos(ctx, []jobq.ID{jid})
 	require.NoError(err)
 	require.Equal(1, len(jobs))
 	require.Equal("test", jobs[0].Options.Name)

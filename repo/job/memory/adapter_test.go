@@ -29,13 +29,13 @@ func TestAdapter(t *testing.T) {
 	jOpts.LogStatusChange = true
 	jid, err := tx.Create(context.Background(), "test", -10, jOpts, nil)
 	require.NoError(err)
-	require.Equal(jobq.JobID(1), jid)
+	require.Equal(jobq.ID(1), jid)
 
 	jids, err := tx.ListByStatus(context.Background(), jobq.JobStatusCreated, 0, 0)
 	require.NoError(err)
 	require.Len(jids, 1)
 
-	err = tx.SetStatus(context.Background(), []jobq.JobID{jid}, jobq.JobStatusReady)
+	err = tx.SetStatus(context.Background(), []jobq.ID{jid}, jobq.JobStatusReady)
 	require.NoError(err)
 
 	jids, err = tx.ListByStatus(context.Background(), jobq.JobStatusCreated, 0, 0)
@@ -49,7 +49,7 @@ func TestAdapter(t *testing.T) {
 	require.NoError(err)
 	require.Len(logs, 3)
 
-	infos, err := tx.GetInfos(context.Background(), []jobq.JobID{jid})
+	infos, err := tx.GetInfos(context.Background(), []jobq.ID{jid})
 	require.NoError(err)
 	require.Len(infos, 1)
 

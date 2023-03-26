@@ -6,7 +6,7 @@ import (
 	"github.com/colbee1/jobq"
 )
 
-func (s *Service) ListByStatus(ctx context.Context, status jobq.JobStatus, offset int, limit int) ([]jobq.JobID, error) {
+func (s *Service) ListByStatus(ctx context.Context, status jobq.Status, offset int, limit int) ([]jobq.ID, error) {
 	tx, err := s.jobRepo.NewTransaction()
 	if err != nil {
 		return nil, err
@@ -16,7 +16,7 @@ func (s *Service) ListByStatus(ctx context.Context, status jobq.JobStatus, offse
 	return tx.ListByStatus(ctx, status, offset, limit)
 }
 
-func (s *Service) GetInfos(ctx context.Context, jids []jobq.JobID) ([]*jobq.JobInfo, error) {
+func (s *Service) GetInfos(ctx context.Context, jids []jobq.ID) ([]*jobq.JobInfo, error) {
 	tx, err := s.jobRepo.NewTransaction()
 	if err != nil {
 		return nil, err

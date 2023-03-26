@@ -7,11 +7,11 @@ import (
 )
 
 type modelJob struct {
-	id       jobq.JobID
-	topic    jobq.JobTopic
-	priority jobq.JobPriority
-	status   jobq.JobStatus
-	payload  jobq.JobPayload
+	id       jobq.ID
+	topic    jobq.Topic
+	priority jobq.Priority
+	status   jobq.Status
+	payload  jobq.Payload
 	options  jobq.JobOptions
 	info     jobq.JobInfo
 	logs     []string

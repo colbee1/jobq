@@ -6,7 +6,7 @@ import (
 
 func New() (*Adapter, error) {
 	a := &Adapter{
-		pqByTopic: make(map[jobq.JobTopic]*JobQueue),
+		pqByTopic: make(map[jobq.Topic]*JobQueue),
 		pqDelayed: newJobQueue(),
 		exit:      make(chan struct{}, 1),
 	}
@@ -23,7 +23,7 @@ func (a *Adapter) Close() error {
 	a.wg.Wait()
 
 	// Free memory
-	a.pqByTopic = make(map[jobq.JobTopic]*JobQueue)
+	a.pqByTopic = make(map[jobq.Topic]*JobQueue)
 
 	return nil
 }

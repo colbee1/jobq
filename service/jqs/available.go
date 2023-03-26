@@ -7,7 +7,7 @@ import (
 	"github.com/colbee1/jobq"
 )
 
-func (s *Service) Available(ctx context.Context, topic jobq.JobTopic) (int, error) {
+func (s *Service) Available(ctx context.Context, topic jobq.Topic) (int, error) {
 	if topic == "" {
 		topic = DefaultTopic
 	}

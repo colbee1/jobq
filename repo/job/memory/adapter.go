@@ -5,18 +5,13 @@ import (
 	"sync/atomic"
 
 	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo"
 )
 
-var _ jobq.IJobRepository = (*Adapter)(nil)
+var _ repo.IJobRepository = (*Adapter)(nil)
 
 type Adapter struct {
 	jobSequence atomic.Uint64 // same type as jobq.JobID
-	jobs        map[jobq.JobID]*modelJob
+	jobs        map[jobq.ID]*modelJob
 	jobsLock    sync.RWMutex
-}
-
-func (a *Adapter) Close() error {
-	a.jobs = make(map[jobq.JobID]*modelJob)
-
-	return nil
 }

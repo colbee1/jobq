@@ -10,19 +10,19 @@ import (
 
 type Job struct {
 	service *Service
-	id      jobq.JobID
-	topic   jobq.JobTopic
+	id      jobq.ID
+	topic   jobq.Topic
 }
 
-func (j *Job) ID() jobq.JobID {
+func (j *Job) ID() jobq.ID {
 	return j.id
 }
 
-func (j *Job) Topic() jobq.JobTopic {
+func (j *Job) Topic() jobq.Topic {
 	return j.topic
 }
 
-func (j *Job) Priority() (jobq.JobPriority, error) {
+func (j *Job) Priority() (jobq.Priority, error) {
 	tx, err := j.service.jobRepo.NewTransaction()
 	if err != nil {
 		return 0, err
@@ -32,7 +32,7 @@ func (j *Job) Priority() (jobq.JobPriority, error) {
 	return tx.GetPriority(context.Background(), j.id)
 }
 
-func (j *Job) Status() (jobq.JobStatus, error) {
+func (j *Job) Status() (jobq.Status, error) {
 	tx, err := j.service.jobRepo.NewTransaction()
 	if err != nil {
 		return jobq.JobStatusCreated, err
@@ -92,7 +92,7 @@ func (j *Job) Done(log string) error {
 
 	// Update job status
 	//
-	if err := tx.SetStatus(context.Background(), []jobq.JobID{j.id}, jobq.JobStatusDone); err != nil {
+	if err := tx.SetStatus(context.Background(), []jobq.ID{j.id}, jobq.JobStatusDone); err != nil {
 		return err
 	}
 
@@ -125,7 +125,7 @@ func (j *Job) Fail(log string) error {
 
 	// Get job info
 	//
-	infos, err := tx.GetInfos(context.Background(), []jobq.JobID{j.id})
+	infos, err := tx.GetInfos(context.Background(), []jobq.ID{j.id})
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func (j *Job) Fail(log string) error {
 	// TODO: Update job Retries
 
 	if retries > info.Options.MaxRetries {
-		if err := tx.SetStatus(context.Background(), []jobq.JobID{j.id}, jobq.JobStatusCanceled); err != nil {
+		if err := tx.SetStatus(context.Background(), []jobq.ID{j.id}, jobq.JobStatusCanceled); err != nil {
 			return err
 		}
 
@@ -162,7 +162,7 @@ func (j *Job) Fail(log string) error {
 
 	// Update job status
 	//
-	if err := tx.SetStatus(context.Background(), []jobq.JobID{j.id}, status); err != nil {
+	if err := tx.SetStatus(context.Background(), []jobq.ID{j.id}, status); err != nil {
 		return err
 	}
 

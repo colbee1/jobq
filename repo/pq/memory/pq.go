@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo"
 )
 
 type (
@@ -20,9 +21,9 @@ type (
 
 	JobItem struct {
 		heapPriority int64 // Used to order items (ie: timestamp)
-		Topic        jobq.JobTopic
-		Priority     jobq.JobPriority
-		JobID        jobq.JobID
+		Topic        jobq.Topic
+		Priority     jobq.Priority
+		JobID        jobq.ID
 	}
 )
 
@@ -36,15 +37,16 @@ func newJobQueue() *JobQueue {
 	return jq
 }
 
-func (pq *JobQueue) Stats() jobq.TopicStats {
+func (pq *JobQueue) Stats() repo.TopicStats {
 	pq.mu.RLock()
 	defer pq.mu.RUnlock()
 
-	return jobq.TopicStats{
-		DateCreated:    pq.dateCreated,
-		DateLastPush:   pq.dateLastPush,
-		PushTotalCount: pq.pushTotalCount,
-		MaxQueueLen:    pq.maxQueueLen,
+	return repo.TopicStats{
+		DateCreated:          pq.dateCreated,
+		DateLastPush:         pq.dateLastPush,
+		PushTotalCount:       pq.pushTotalCount,
+		MaxQueueLen:          pq.maxQueueLen,
+		CurrentQueueCapacity: int64(cap(pq.queue)),
 	}
 }
 

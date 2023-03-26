@@ -9,7 +9,7 @@ import (
 	"github.com/colbee1/jobq"
 )
 
-func (a *Adapter) Push(ctx context.Context, topic jobq.JobTopic, pri jobq.JobPriority, jid jobq.JobID, delayedAt time.Time) (jobq.JobStatus, error) {
+func (a *Adapter) Push(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jid jobq.ID, delayedAt time.Time) (jobq.Status, error) {
 	v := assertor.New()
 	v.Assert(ctx != nil, "context is missing")
 	v.Assert(topic != "", "topic is missing")

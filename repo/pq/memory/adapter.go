@@ -8,13 +8,13 @@ import (
 )
 
 type Adapter struct {
-	pqByTopic map[jobq.JobTopic]*JobQueue
+	pqByTopic map[jobq.Topic]*JobQueue
 	pqDelayed *JobQueue
 	exit      chan struct{}
 	wg        sync.WaitGroup
 }
 
-func (a *Adapter) Len(ctx context.Context, topic jobq.JobTopic) (int, error) {
+func (a *Adapter) Len(ctx context.Context, topic jobq.Topic) (int, error) {
 	pq, found := a.pqByTopic[topic]
 	if !found {
 		return 0, nil
