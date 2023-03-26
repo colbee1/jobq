@@ -16,7 +16,7 @@ jobq is a simple embeddable golang package to handle jobs/tasks/xxx asynchronous
 
 ### In progress
 
-- Retry failed job with configurable exponential backoff. (IN PROGRESS)
+- Retry failed job with configurable exponential backoff.
 
 ### Planned
 
@@ -24,12 +24,12 @@ jobq is a simple embeddable golang package to handle jobs/tasks/xxx asynchronous
 - Job timeout.
 - Auto cleanup topic with no more activity.
 
-## Available job repository
+## Available job repositories
 
 - repo/job/memory - volatile in memory job storage. Does not support transaction
 - repo/job/badger3 - durable file system storage. In progresse 85% done.
 
-## Available priority queue repository
+## Available priority queue repositories
 
 - repo/pq/memory - in memory fast priority queues.
 
