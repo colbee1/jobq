@@ -5,9 +5,8 @@ import (
 )
 
 var (
-	ErrTopicIsMissing     = errors.New("jobq: topic is missing")
-	ErrTopicNotFound      = errors.New("jobq: topic not found")
-	ErrJobNotFound        = errors.New("jobq: job not found")
-	ErrInvalidJobStatus   = errors.New("jobq: invalid job state")
-	ErrInvalidTransaction = errors.New("jobq: invalid transaction")
+	ErrTopicIsMissing   = errors.New("jobq: topic is missing")
+	ErrTopicNotFound    = errors.New("jobq: topic not found")
+	ErrJobNotFound      = errors.New("jobq: job not found")
+	ErrInvalidJobStatus = errors.New("jobq: invalid job state")
 )

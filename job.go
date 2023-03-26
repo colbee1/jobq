@@ -1,14 +1,15 @@
 package jobq
 
 import (
+	"strings"
 	"time"
 )
 
 type IJob interface {
-	ID() JobID
-	Topic() JobTopic
-	Priority() (JobPriority, error)
-	Status() (JobStatus, error)
+	ID() ID
+	Topic() Topic
+	Priority() (Priority, error)
+	Status() (Status, error)
 	// Payload() ([]byte, error)
 
 	Log(string) error
@@ -39,10 +40,10 @@ var DefaultJobOptions = JobOptions{
 }
 
 type JobInfo struct {
-	ID             JobID
-	Topic          JobTopic
-	Priority       JobPriority
-	Status         JobStatus
+	ID             ID
+	Topic          Topic
+	Priority       Priority
+	Status         Status
 	DateCreated    time.Time
 	DateTerminated time.Time
 	DateReserved   []time.Time
@@ -52,23 +53,24 @@ type JobInfo struct {
 }
 
 type (
-	JobID       uint64
-	JobStatus   int16
-	JobPriority int16
-	JobTopic    string
-	JobPayload  []byte
+	ID       uint64
+	Status   int16
+	Priority int16
+	Topic    string
+	Payload  []byte
 )
 
 const (
-	JobStatusCanceled = JobStatus(-2)
-	JobStatusDelayed  = JobStatus(-1)
-	JobStatusCreated  = JobStatus(0)
-	JobStatusReady    = JobStatus(1)
-	JobStatusReserved = JobStatus(2)
-	JobStatusDone     = JobStatus(3)
+	JobStatusUndefined = Status(-666)
+	JobStatusCanceled  = Status(-2)
+	JobStatusDelayed   = Status(-1)
+	JobStatusCreated   = Status(0)
+	JobStatusReady     = Status(1)
+	JobStatusReserved  = Status(2)
+	JobStatusDone      = Status(3)
 )
 
-func (s JobStatus) String() string {
+func (s Status) String() string {
 	switch s {
 	case -2:
 		return "Canceled"
@@ -85,4 +87,23 @@ func (s JobStatus) String() string {
 	}
 
 	return "Undefined!"
+}
+
+func NewStatusFromString(s string) Status {
+	switch strings.ToLower(s) {
+	case "canceled":
+		return JobStatusCanceled
+	case "delayed":
+		return JobStatusDelayed
+	case "created":
+		return JobStatusCreated
+	case "ready":
+		return JobStatusReady
+	case "reserved":
+		return JobStatusReserved
+	case "done":
+		return JobStatusDone
+	}
+
+	return JobStatusUndefined
 }
