@@ -2,28 +2,36 @@
 
 !! Early development - work in progress - only for comments !!
 
-jobq is an simple embeddable golang package to handle jobs/tasks/xxx asynchronously.
+jobq is a simple embeddable golang package to handle jobs/tasks/xxx asynchronously.
 
-Expected features:
+## Features:
 
-- Job is handled by a priority queue. (OK)
-- Job is pushed in a named queue, called topic. (OK)
-- Topic creation is automatic, just push on it. (OK)
-- Job can be delayed. (OK)
-- Job FSM is simple, only few status: Ready, Delayed, Reserved, Done or Cancel. (OK)
+- Jobs are managed by fast priority queue.
+- Jobs are pushed in named queues, called topics.
+- Topic creation is on the fly. Just push on it.
+- Job can be delayed in time.
+- Job FSM is simple, only few status: Ready, Delayed, Reserved, Done or Cancel.
+- Simple topic statistics.
+
+### In progress
+
 - Job that failed is automatically retried with definable backoff behavior. (IN PROGRESS)
-- Job can be persisted by using a "durable" repository backend. (TODO)
-- Auto restart job after application crash. (TODO)
-- Job timeout. (TODO)
+
+### Planned
+
+- Job can be persisted by using a "durable" repository backend.
+  - Auto restart job after application crash.
+- Job timeout.
+- Topic with no more activity is automatically removed.
 
 ## Available job repository
 
-- repo/job/memory (do not support transaction)
-- repo/pq/badger3 (IN PROGRESS)
+- repo/job/memory (do not support transaction) - in memory job storage
+- repo/job/badger3 (IN PROGRESS) - durable file system storage.
 
 ## Available priority queue repository
 
-- repo/pq/memory (OK)
+- repo/pq/memory - in memory priority queues
 
 ## Examples
 
