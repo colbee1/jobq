@@ -21,32 +21,26 @@ type IJobRepository interface {
 }
 
 type IJobRepositoryTransaction interface {
-	// Creates creates a new job and returns it's uinque id
+	// Creates creates a new job and returns it's unique id
 	Create(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jo jobq.JobOptions, payload jobq.Payload) (jobq.ID, error)
 
-	SetStatus(ctx context.Context, jids []jobq.ID, state jobq.Status) error
-	GetStatus(ctx context.Context, jid jobq.ID) (jobq.Status, error)
+	// Read returns all informations about one jobs.
+	Read(ctx context.Context, jids []jobq.ID) ([]*jobq.JobInfo, error)
 
-	// Log adds a log message in job logs. Date (rfc3339) is prepended.
-	Log(ctx context.Context, jid jobq.ID, message string) error
+	// Payload returns job's payload.
+	ReadPayload(ctx context.Context, jid jobq.ID) (jobq.Payload, error)
 
-	// Logs returns all recorded logs.
-	Logs(ctx context.Context, jid jobq.ID) ([]string, error)
+	// Update applies job mutations on jobs.
+	Update(ctx context.Context, jids []jobq.ID, updater func(job *jobq.JobInfo) error) error
 
-	ListByStatus(ctx context.Context, status jobq.Status, offset int, limit int) ([]jobq.ID, error)
+	// Delete removes jobs for repository.
+	Delete(ctx context.Context, jids []jobq.ID) error
 
-	GetInfos(ctx context.Context, jids []jobq.ID) ([]*jobq.JobInfo, error)
-	GetPriority(ctx context.Context, jid jobq.ID) (jobq.Priority, error)
-	GetOptions(ctx context.Context, jid jobq.ID) (*jobq.JobOptions, error)
-	SetOptions(ctx context.Context, jid jobq.ID, jo *jobq.JobOptions) error
+	// FindByStatus returns list of jobq.IDs for job in wanted status.
+	FindByStatus(ctx context.Context, status jobq.Status, offset int, limit int) ([]jobq.ID, error)
 
-	// GetPayload(ctx context.Context, jid JobID) (JobPayload, error)
-
-	// Delete deletes done and canceled job by their ID.
-	// DeleteByID(ctx context.Context, jids []JobID) error
-
-	// Delete deletes done and canceled job by thei age.
-	// DeleteByAge(ctx context.Context, age time.Duration) error
+	// Logf adds a formated log message in job logs. Date (rfc3339) is prepended.
+	Logf(ctx context.Context, jid jobq.ID, format string, args ...any) error
 
 	Commit() error
 	Close() error

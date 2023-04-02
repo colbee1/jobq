@@ -14,9 +14,13 @@ type (
 		ID             jobq.ID         `json:"id"`
 		Topic          jobq.Topic      `json:"topic"`
 		Priority       jobq.Priority   `json:"pri"`
+		Status         jobq.Status     `json:"status"`
 		DateCreated    time.Time       `json:"dateCreated"`
 		DateTerminated time.Time       `json:"dateTerminated"`
+		DatesReserved  []time.Time     `json:"datesReserved"`
+		RetryCount     uint            `json:"retryCount"`
 		Options        modelJobOptions `json:"options"`
+		Logs           []string        `json:"logs"`
 	}
 
 	modelJobOptions struct {
@@ -33,13 +37,32 @@ type (
 var (
 	prefixKeyIdSequence  = []byte("j:id:seq:")
 	prefixKeyJob         = []byte("j:j:")
-	prefixKeyStatus      = []byte("j:s:")
-	prefixKeyStatusIndex = []byte("i:j:s:")
-	prefixKeyDateUpdated = []byte("j:du:")
-	prefixKeyInfo        = []byte("j:i:")
 	prefixKeyPayload     = []byte("j:p:")
-	prefixKeyLogs        = []byte("j:l:")
+	prefixKeyStatusIndex = []byte("i:j:s:")
 )
+
+func (m *modelJob) ToDomain() *jobq.JobInfo {
+	return &jobq.JobInfo{
+		ID:             m.ID,
+		Topic:          m.Topic,
+		Priority:       m.Priority,
+		Status:         m.Status,
+		DateCreated:    m.DateCreated,
+		DateTerminated: m.DateTerminated,
+		DatesReserved:  m.DatesReserved,
+		RetryCount:     m.RetryCount,
+		Options: jobq.JobOptions{
+			Name:            m.Options.Name,
+			Timeout:         m.Options.Timeout,
+			DelayedAt:       m.Options.DelayedAt,
+			MaxRetries:      m.Options.MaxRetries,
+			MinBackOff:      m.Options.MinBackOff,
+			MaxBackOff:      m.Options.MaxBackOff,
+			LogStatusChange: m.Options.LogStatusChange,
+		},
+		Logs: m.Logs,
+	}
+}
 
 func (m *modelJob) keyID() []byte {
 	return []byte(fmt.Sprintf("%020d", m.ID))
@@ -47,10 +70,6 @@ func (m *modelJob) keyID() []byte {
 
 func (m *modelJob) keyJob() []byte {
 	return append(prefixKeyJob, m.keyID()...)
-}
-
-func (m *modelJob) keyStatus() []byte {
-	return append(prefixKeyStatus, m.keyID()...)
 }
 
 func (m *modelJob) keyStatusIndex(status jobq.Status) []byte {
@@ -61,14 +80,6 @@ func (m *modelJob) keyStatusIndex(status jobq.Status) []byte {
 	key.Write(m.keyID())
 
 	return key.Bytes()
-}
-
-func (m *modelJob) keyUpdated() []byte {
-	return append(prefixKeyDateUpdated, m.keyID()...)
-}
-
-func (m *modelJob) keyLogs() []byte {
-	return append(prefixKeyLogs, m.keyID()...)
 }
 
 func (m *modelJob) keyPayload() []byte {

@@ -27,7 +27,7 @@ func main() {
 }
 
 func run() error {
-	jobRepo, err := job_repo.New("../../test/db/examples/batch-consummer", job_repo.Options{})
+	jobRepo, err := job_repo.New("../../test/db/examples/batch-consummer", job_repo.Options{DropAll: true})
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func run() error {
 
 	// List job done
 	//
-	jids, err := jqSvc.ListByStatus(context.Background(), jobq.JobStatusDone, 0, 1000)
+	jids, err := jqSvc.FindByStatus(context.Background(), jobq.JobStatusDone, 0, 1000)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func run() error {
 
 	// List job reserved
 	//
-	jids, err = jqSvc.ListByStatus(context.Background(), jobq.JobStatusReserved, 0, 1000)
+	jids, err = jqSvc.FindByStatus(context.Background(), jobq.JobStatusReserved, 0, 1000)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func run() error {
 
 	// List job canceled
 	//
-	jids, err = jqSvc.ListByStatus(context.Background(), jobq.JobStatusCanceled, 0, 1000)
+	jids, err = jqSvc.FindByStatus(context.Background(), jobq.JobStatusCanceled, 0, 1000)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func run() error {
 
 	// List job delayed
 	//
-	jids, err = jqSvc.ListByStatus(context.Background(), jobq.JobStatusDelayed, 0, 1000)
+	jids, err = jqSvc.FindByStatus(context.Background(), jobq.JobStatusDelayed, 0, 1000)
 	if err != nil {
 		return err
 	}
@@ -147,9 +147,10 @@ func consumer(jq service.IJobQueueService, wg *sync.WaitGroup) {
 
 		batch := []string{}
 		for _, job := range jobs {
-			pri, _ := job.Priority()
+			info, _ := job.Unwrap()
+			pri := info.Priority
 			batch = append(batch, fmt.Sprintf("Job%d(pri=%d)", job.ID(), pri))
-			job.Done("")
+			job.Done()
 		}
 
 		fmt.Printf("\n%s: Process batch of %d jobs: %s\n\n", t.Format(time.RFC3339), len(batch), strings.Join(batch, ", "))

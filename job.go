@@ -5,23 +5,6 @@ import (
 	"time"
 )
 
-type IJob interface {
-	ID() ID
-	Topic() Topic
-	Priority() (Priority, error)
-	Status() (Status, error)
-	// Payload() ([]byte, error)
-
-	Log(string) error
-	Logs() ([]string, error)
-
-	// Options() (*JobOptions, error)
-
-	Done(log string) error
-	Fail(log string) error
-	Cancel(log string) error
-}
-
 type JobOptions struct {
 	Name            string
 	Timeout         time.Duration
@@ -34,8 +17,8 @@ type JobOptions struct {
 
 var DefaultJobOptions = JobOptions{
 	Timeout:    2 * time.Hour,
-	MaxRetries: 15,
-	MinBackOff: 1 * time.Minute,
+	MaxRetries: 50, // Max attempts before auto Cancel()
+	MinBackOff: 30 * time.Second,
 	MaxBackOff: 60 * time.Minute,
 }
 
@@ -46,8 +29,8 @@ type JobInfo struct {
 	Status         Status
 	DateCreated    time.Time
 	DateTerminated time.Time
-	DateReserved   []time.Time
-	Retries        uint // == len(DateReserved) - 1
+	DatesReserved  []time.Time
+	RetryCount     uint // == len(DateReserved) - 1
 	Options        JobOptions
 	Logs           []string
 }

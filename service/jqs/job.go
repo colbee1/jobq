@@ -6,169 +6,152 @@ import (
 	"time"
 
 	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo"
+	"github.com/colbee1/jobq/service"
 )
 
 type Job struct {
 	service *Service
 	id      jobq.ID
-	topic   jobq.Topic
 }
 
 func (j *Job) ID() jobq.ID {
 	return j.id
 }
 
-func (j *Job) Topic() jobq.Topic {
-	return j.topic
-}
-
-func (j *Job) Priority() (jobq.Priority, error) {
-	tx, err := j.service.jobRepo.NewTransaction()
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Close()
-
-	return tx.GetPriority(context.Background(), j.id)
-}
-
-func (j *Job) Status() (jobq.Status, error) {
-	tx, err := j.service.jobRepo.NewTransaction()
-	if err != nil {
-		return jobq.JobStatusCreated, err
-	}
-	defer tx.Close()
-
-	return tx.GetStatus(context.Background(), j.id)
-}
-
-func (j *Job) Log(message string) error {
-	tx, err := j.service.jobRepo.NewTransaction()
-	if err != nil {
-		return err
-	}
-	defer tx.Close()
-
-	if err := tx.Log(context.Background(), j.id, message); err != nil {
-		return err
-	}
-
-	return tx.Commit()
-}
-
-func (j *Job) Logs() ([]string, error) {
+func (j *Job) Unwrap() (*jobq.JobInfo, error) {
 	tx, err := j.service.jobRepo.NewTransaction()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Close()
 
-	return tx.Logs(context.Background(), j.id)
+	jobs, err := tx.Read(context.Background(), []jobq.ID{j.id})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(jobs) > 0 {
+		return jobs[0], nil
+	}
+
+	return nil, repo.ErrJobNotFound
 }
 
-func (j *Job) Done(log string) error {
+func (j *Job) Payload() (jobq.Payload, error) {
+	tx, err := j.service.jobRepo.NewTransaction()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Close()
+
+	return tx.ReadPayload(context.Background(), j.id)
+}
+
+func (j *Job) Logf(format string, args ...any) error {
 	tx, err := j.service.jobRepo.NewTransaction()
 	if err != nil {
 		return err
 	}
 	defer tx.Close()
 
-	// Job status must be reserved
-	//
-	status, err := tx.GetStatus(context.Background(), j.ID())
-	if err != nil {
-		return err
-	}
-	if status != jobq.JobStatusReserved {
-		return fmt.Errorf("%w: job must be in reserved state to be done", jobq.ErrInvalidJobStatus)
-	}
-
-	// Add log if any
-	if log != "" {
-		if err := tx.Log(context.Background(), j.id, log); err != nil {
-			return err
-		}
-	}
-
-	// Update job status
-	//
-	if err := tx.SetStatus(context.Background(), []jobq.ID{j.id}, jobq.JobStatusDone); err != nil {
+	if err := tx.Logf(context.Background(), j.id, format, args...); err != nil {
 		return err
 	}
 
 	return tx.Commit()
 }
 
-func (j *Job) Fail(log string) error {
+func (j *Job) Cancel() error {
 	tx, err := j.service.jobRepo.NewTransaction()
 	if err != nil {
 		return err
 	}
 	defer tx.Close()
 
-	// Job status must be reserved
-	//
-	status, err := tx.GetStatus(context.Background(), j.ID())
+	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(j.id)},
+		func(job *jobq.JobInfo) error {
+			job.Status = jobq.JobStatusCanceled
+			return nil
+		})
 	if err != nil {
-		return err
-	}
-	if status != jobq.JobStatusReserved {
-		return fmt.Errorf("%w: job must be in reserved state to be relased", jobq.ErrInvalidJobStatus)
-	}
-
-	// Add log if any
-	if log != "" {
-		if err := tx.Log(context.Background(), j.id, log); err != nil {
-			return err
-		}
-	}
-
-	// Get job info
-	//
-	infos, err := tx.GetInfos(context.Background(), []jobq.ID{j.id})
-	if err != nil {
-		return err
-	}
-	if len(infos) == 0 {
-		return jobq.ErrJobNotFound
-	}
-	info := infos[0]
-
-	retries := info.Retries + 1
-	// TODO: Update job Retries
-
-	if retries > info.Options.MaxRetries {
-		if err := tx.SetStatus(context.Background(), []jobq.ID{j.id}, jobq.JobStatusCanceled); err != nil {
-			return err
-		}
-
 		return nil
 	}
 
-	// calculate backoff delay
-	//
-	delay := info.Options.MinBackOff
-	for i := 0; i < int(retries); i++ {
-		delay *= 2
-		if delay > info.Options.MaxBackOff {
-			delay = info.Options.MinBackOff
-		}
-	}
+	return tx.Commit()
+}
 
-	status, err = j.service.pqRepo.Push(context.Background(), j.topic, info.Priority, j.id, time.Now().Add(delay))
+func (j *Job) Done() error {
+	tx, err := j.service.jobRepo.NewTransaction()
 	if err != nil {
 		return err
 	}
+	defer tx.Close()
 
-	// Update job status
-	//
-	if err := tx.SetStatus(context.Background(), []jobq.ID{j.id}, status); err != nil {
-		return err
+	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(j.id)},
+		func(job *jobq.JobInfo) error {
+			if job.Status != jobq.JobStatusReserved {
+				return fmt.Errorf("%w: status must be Reserved to be done", service.ErrInvalidStatus)
+			}
+
+			job.Status = jobq.JobStatusDone
+			return nil
+		})
+	if err != nil {
+		return nil
 	}
 
 	return tx.Commit()
 }
 
-func (j *Job) Cancel(log string) error {
-	return fmt.Errorf("not yet implemented")
+func (j *Job) Retry(overrideBackoff time.Duration) error {
+	tx, err := j.service.jobRepo.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Close()
+
+	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(j.id)},
+		func(job *jobq.JobInfo) error {
+			if job.Status != jobq.JobStatusReserved {
+				return fmt.Errorf("%w: status must be Reserved to be retried", service.ErrInvalidStatus)
+			}
+
+			if job.RetryCount >= job.Options.MaxRetries {
+				job.Status = jobq.JobStatusCanceled
+				return nil
+			} else {
+				job.RetryCount++
+			}
+
+			// Calculate backoff delay
+			//
+			delay := job.Options.MinBackOff
+			if overrideBackoff == 0 {
+				for i := 0; i < int(job.RetryCount); i++ {
+					delay *= 2
+					if delay > job.Options.MaxBackOff {
+						delay = job.Options.MinBackOff
+					}
+				}
+			} else {
+				delay = overrideBackoff
+			}
+			if delay < time.Second {
+				delay = time.Second
+			}
+
+			status, err := j.service.pqRepo.Push(context.Background(), job.Topic, job.Priority, job.ID, time.Now().Add(delay))
+			if err != nil {
+				return err
+			}
+			job.Status = status
+
+			return nil
+		})
+	if err != nil {
+		return nil
+	}
+
+	return tx.Commit()
 }

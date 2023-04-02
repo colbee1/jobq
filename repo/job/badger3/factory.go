@@ -41,5 +41,12 @@ func (a *Adapter) Close() error {
 		a.jobIdSeq.Release()
 	}
 
-	return a.db.Close()
+	if a.db != nil && !a.db.IsClosed() {
+		a.db.RunValueLogGC(0.5) // TODO: Remember to move this operation in regular time interval.
+		a.db.Flatten(8)
+
+		return a.db.Close()
+	}
+
+	return nil
 }

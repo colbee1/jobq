@@ -4,33 +4,14 @@ import (
 	"context"
 
 	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo"
 )
-
-func (t *Transaction) GetStatus(ctx context.Context, jid jobq.ID) (jobq.Status, error) {
-	a := t.a
-
-	if job, found := a.jobs[jid]; found {
-		return job.status, nil
-	}
-
-	return 0, jobq.ErrJobNotFound
-}
-
-func (t *Transaction) GetPriority(ctx context.Context, jid jobq.ID) (jobq.Priority, error) {
-	a := t.a
-
-	if job, found := a.jobs[jid]; found {
-		return job.priority, nil
-	}
-
-	return 0, jobq.ErrJobNotFound
-}
 
 func (a *Adapter) Durable() bool {
 	return false
 }
 
-func (t *Transaction) GetInfos(ctx context.Context, jids []jobq.ID) ([]*jobq.JobInfo, error) {
+func (t *Transaction) Read(ctx context.Context, jids []jobq.ID) ([]*jobq.JobInfo, error) {
 	a := t.a
 
 	if len(jids) == 0 {
@@ -39,55 +20,23 @@ func (t *Transaction) GetInfos(ctx context.Context, jids []jobq.ID) ([]*jobq.Job
 
 	result := make([]*jobq.JobInfo, 0, len(jids))
 	for _, jid := range jids {
-		if m, found := a.jobs[jid]; found {
-			ji := &jobq.JobInfo{
-				ID:             m.id,
-				Topic:          m.topic,
-				Priority:       m.priority,
-				Status:         m.status,
-				DateCreated:    m.info.DateCreated,
-				DateTerminated: m.info.DateTerminated,
-				DateReserved:   m.info.DateReserved,
-				Retries:        m.info.Retries,
-				Options:        m.options,
-				Logs:           m.logs,
-			}
-			result = append(result, ji)
+		if mj, found := a.jobs[jid]; found {
+			result = append(result, mj.ToDomain())
 		}
 	}
 
 	return result, nil
 }
 
-func (t *Transaction) GetOptions(ctx context.Context, jid jobq.ID) (*jobq.JobOptions, error) {
-	a := t.a
-
-	if m, found := a.jobs[jid]; found {
-		return &jobq.JobOptions{
-			Name:            m.options.Name,
-			Timeout:         m.options.Timeout,
-			DelayedAt:       m.options.DelayedAt,
-			MaxRetries:      m.options.MaxRetries,
-			MinBackOff:      m.options.MinBackOff,
-			MaxBackOff:      m.options.MaxBackOff,
-			LogStatusChange: m.options.LogStatusChange,
-		}, nil
-	}
-	return nil, jobq.ErrJobNotFound
-}
-
-func (t *Transaction) Logs(ctx context.Context, jid jobq.ID) ([]string, error) {
-	a := t.a
-
-	job, found := a.jobs[jid]
-	if !found {
-		return nil, jobq.ErrJobNotFound
+func (t *Transaction) ReadPayload(ctx context.Context, jid jobq.ID) (jobq.Payload, error) {
+	if job, found := t.a.jobs[jid]; found {
+		return job.Payload, nil
 	}
 
-	return job.logs, nil
+	return nil, repo.ErrJobNotFound
 }
 
-func (t *Transaction) ListByStatus(ctx context.Context, status jobq.Status, offset int, limit int) ([]jobq.ID, error) {
+func (t *Transaction) FindByStatus(ctx context.Context, status jobq.Status, offset int, limit int) ([]jobq.ID, error) {
 	a := t.a
 
 	if limit < 1 {
@@ -99,14 +48,14 @@ func (t *Transaction) ListByStatus(ctx context.Context, status jobq.Status, offs
 	a.jobsLock.RLock()
 	defer a.jobsLock.RUnlock()
 
-	for _, job := range a.jobs {
+	for _, mj := range a.jobs {
 		if offset > 0 {
 			offset--
 			continue
 		}
 
-		if job.status == status {
-			jobs = append(jobs, job.id)
+		if mj.Status == status {
+			jobs = append(jobs, mj.ID)
 		}
 
 		if len(jobs) == limit {

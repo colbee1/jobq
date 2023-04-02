@@ -55,7 +55,7 @@ func TestAdapterCreate(t *testing.T) {
 	tx.Commit()
 }
 
-func TestAdapterGetStatus(t *testing.T) {
+func TestAdapterRead(t *testing.T) {
 	require := require.New(t)
 
 	repo, err := getRepo()
@@ -67,12 +67,16 @@ func TestAdapterGetStatus(t *testing.T) {
 	require.NotNil(tx)
 	defer tx.Close()
 
-	status, err := tx.GetStatus(context.Background(), jobq.ID(1))
+	jobs, err := tx.Read(context.Background(), []jobq.ID{jobq.ID(1)})
 	require.NoError(err)
-	require.Equal(jobq.JobStatusCreated, status)
+	require.Len(jobs, 1)
+	require.Equal(jobq.JobStatusCreated, jobs[0].Status)
+	require.Equal(jobq.Priority(-100), jobs[0].Priority)
+	require.Equal(jobTestTopic, jobs[0].Topic)
+	require.Equal("test job", jobs[0].Options.Name)
 }
 
-func TestAdapterSetStatus(t *testing.T) {
+func TestAdapterPayload(t *testing.T) {
 	require := require.New(t)
 
 	repo, err := getRepo()
@@ -84,7 +88,28 @@ func TestAdapterSetStatus(t *testing.T) {
 	require.NotNil(tx)
 	defer tx.Close()
 
-	err = tx.SetStatus(context.Background(), []jobq.ID{jobq.ID(1)}, jobq.JobStatusReady)
+	payload, err := tx.ReadPayload(context.Background(), jobq.ID(1))
+	require.NoError(err)
+	require.Equal("Hello world", string(payload))
+}
+
+func TestAdapterUpdate(t *testing.T) {
+	require := require.New(t)
+
+	repo, err := getRepo()
+	require.NoError(err)
+	require.NotNil(repo)
+
+	tx, err := repo.NewTransaction()
+	require.NoError(err)
+	require.NotNil(tx)
+	defer tx.Close()
+
+	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(1)},
+		func(job *jobq.JobInfo) error {
+			job.Status = jobq.JobStatusReady
+			return nil
+		})
 	require.NoError(err)
 	tx.Commit()
 }
@@ -101,12 +126,13 @@ func TestAdapterGetStatus2(t *testing.T) {
 	require.NotNil(tx)
 	defer tx.Close()
 
-	status, err := tx.GetStatus(context.Background(), jobq.ID(1))
+	jobs, err := tx.Read(context.Background(), []jobq.ID{jobq.ID(1)})
 	require.NoError(err)
-	require.Equal(jobq.JobStatusReady, status)
+	require.Len(jobs, 1)
+	require.Equal(jobq.JobStatusReady, jobs[0].Status)
 }
 
-func TestAdapterGetOptions(t *testing.T) {
+func TestAdapterFindByStatus(t *testing.T) {
 	require := require.New(t)
 
 	repo, err := getRepo()
@@ -118,34 +144,16 @@ func TestAdapterGetOptions(t *testing.T) {
 	require.NotNil(tx)
 	defer tx.Close()
 
-	options, err := tx.GetOptions(context.Background(), jobq.ID(1))
-	require.NoError(err)
-	require.Equal("test job", options.Name)
-	require.Equal(true, options.LogStatusChange)
-}
-
-func TestAdapterListByStatus(t *testing.T) {
-	require := require.New(t)
-
-	repo, err := getRepo()
-	require.NoError(err)
-	require.NotNil(repo)
-
-	tx, err := repo.NewTransaction()
-	require.NoError(err)
-	require.NotNil(tx)
-	defer tx.Close()
-
-	createdJobs, err := tx.ListByStatus(context.Background(), jobq.JobStatusCreated, 0, 100)
+	createdJobs, err := tx.FindByStatus(context.Background(), jobq.JobStatusCreated, 0, 100)
 	require.NoError(err)
 	require.Len(createdJobs, 0)
 
-	readyJobs, err := tx.ListByStatus(context.Background(), jobq.JobStatusReady, 0, 100)
+	readyJobs, err := tx.FindByStatus(context.Background(), jobq.JobStatusReady, 0, 100)
 	require.NoError(err)
 	require.Len(readyJobs, 1)
 }
 
-func TestAdapterGetPriority(t *testing.T) {
+func TestAdapterReadMultiple(t *testing.T) {
 	require := require.New(t)
 
 	repo, err := getRepo()
@@ -157,24 +165,7 @@ func TestAdapterGetPriority(t *testing.T) {
 	require.NotNil(tx)
 	defer tx.Close()
 
-	pri, err := tx.GetPriority(context.Background(), jobq.ID(1))
-	require.NoError(err)
-	require.Equal(jobq.Priority(-100), pri)
-}
-
-func TestAdapterGetInfo(t *testing.T) {
-	require := require.New(t)
-
-	repo, err := getRepo()
-	require.NoError(err)
-	require.NotNil(repo)
-
-	tx, err := repo.NewTransaction()
-	require.NoError(err)
-	require.NotNil(tx)
-	defer tx.Close()
-
-	infos, err := tx.GetInfos(context.Background(), []jobq.ID{jobq.ID(1), jobq.ID(2)})
+	infos, err := tx.Read(context.Background(), []jobq.ID{jobq.ID(1), jobq.ID(2)})
 	require.NoError(err)
 	require.Len(infos, 1)
 	info := infos[0]
@@ -185,8 +176,8 @@ func TestAdapterGetInfo(t *testing.T) {
 		Status:         jobq.JobStatusReady,
 		DateCreated:    info.DateCreated,    // TODO:
 		DateTerminated: info.DateTerminated, // TODO:
-		DateReserved:   info.DateReserved,   // TODO:
-		Retries:        0,
+		DatesReserved:  info.DatesReserved,  // TODO:
+		RetryCount:     0,
 		Options: jobq.JobOptions{
 			Name:            "test job",
 			Timeout:         jobq.DefaultJobOptions.Timeout,

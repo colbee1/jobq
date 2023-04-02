@@ -2,34 +2,69 @@ package badger3
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo"
 	"github.com/dgraph-io/badger/v3"
 )
 
-func (t *Transaction) Create(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jo jobq.JobOptions, payload jobq.Payload) (jobq.ID, error) {
-	a := t.a
+func (t *Transaction) readJob(jid jobq.ID) (*modelJob, error) {
+	m := &modelJob{ID: jid}
+	itm, err := t.tx.Get(m.keyJob())
+	if err != nil {
+		if err == badger.ErrKeyNotFound {
+			return nil, fmt.Errorf("%w: %d", repo.ErrJobNotFound, jid)
+		}
 
+		return nil, err
+	}
+	data, err := itm.ValueCopy(nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.Decode(data); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func (t *Transaction) saveJob(mj *modelJob) error {
+	data, err := mj.Encode()
+	if err != nil {
+		return err
+	}
+
+	if err := t.tx.Set(mj.keyJob(), data); err != nil {
+		return err
+	}
+	t.needCommit = true
+
+	return nil
+}
+
+func (t *Transaction) Create(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jo jobq.JobOptions, payload jobq.Payload) (jobq.ID, error) {
 	if topic == "" {
 		return 0, jobq.ErrTopicIsMissing
 	}
 
 	newID := jobq.ID(0)
 	for newID == 0 {
-		if id, err := a.jobIdSeq.Next(); err != nil {
+		if id, err := t.a.jobIdSeq.Next(); err != nil {
 			return 0, err
 		} else {
 			newID = jobq.ID(id)
 		}
 	}
 
-	model := &modelJob{
+	mj := &modelJob{
 		ID:          newID,
 		Topic:       topic,
 		Priority:    pri,
+		Status:      jobq.JobStatusCreated,
 		DateCreated: time.Now(),
 		Options: modelJobOptions{
 			Name:            jo.Name,
@@ -42,93 +77,126 @@ func (t *Transaction) Create(ctx context.Context, topic jobq.Topic, pri jobq.Pri
 		},
 	}
 
-	jobData, err := model.Encode()
-	if err != nil {
+	if mj.Options.LogStatusChange {
+		mj.Logs = append(mj.Logs, fmt.Sprintf("%s: Job status changed to: %s",
+			time.Now().Format(time.RFC3339Nano), mj.Status.String()))
+	}
+
+	if err := t.saveJob(mj); err != nil {
 		return 0, err
 	}
 
-	txn := t.tx
-	if err := txn.Set(model.keyJob(), jobData); err != nil {
-		return 0, err
-	}
-	if err := txn.Set(model.keyStatus(), []byte(fmt.Sprint(jobq.JobStatusCreated))); err != nil {
-		return 0, err
-	}
-	if err := txn.Set(model.keyPayload(), payload); err != nil {
+	if err := t.tx.Set(mj.keyPayload(), payload); err != nil {
 		return 0, err
 	}
 
-	if model.Options.LogStatusChange {
-		if err := t.Log(ctx, newID, "job created"); err != nil {
-			return 0, err
-		}
+	// Create status index
+	if err := t.tx.Set(mj.keyStatusIndex(mj.Status), []byte{}); err != nil {
+		return 0, err
 	}
-
-	t.needCommit = true
 
 	return newID, nil
 }
 
-func (t *Transaction) SetStatus(ctx context.Context, jids []jobq.ID, status jobq.Status) error {
-	m := &modelJob{}
-
+func (t *Transaction) Update(ctx context.Context, jids []jobq.ID, updater func(job *jobq.JobInfo) error) error {
 	for _, jid := range jids {
-		m.ID = jid
-		// get current status to removefrom index
-		//
-		itm, err := t.tx.Get(m.keyStatus())
-		if err == nil {
-			data, err := itm.ValueCopy(nil)
-			if err != nil {
-				return err
-			}
-			if err := t.tx.Delete(m.keyStatusIndex(jobq.NewStatusFromString(string(data)))); err != nil {
-				return err
-			}
-		} else if err != nil && err != badger.ErrKeyNotFound {
+
+		mj, err := t.readJob(jid)
+		if err != nil {
 			return err
 		}
 
-		if err := t.tx.Set(m.keyStatus(), []byte(status.String())); err != nil {
-			return err
-		}
-		if err := t.tx.Set(m.keyStatusIndex(status), []byte{}); err != nil {
+		after := mj.ToDomain()
+		if err := updater(after); err != nil {
 			return err
 		}
 
-		t.needCommit = true
+		save := false
+
+		// Status changed ?
+		if v := after.Status; v != mj.Status {
+			if err := t.tx.Delete(mj.keyStatusIndex(mj.Status)); err != nil {
+				return err
+			}
+			if err := t.tx.Set(mj.keyStatusIndex(v), []byte{}); err != nil {
+				return err
+			}
+			mj.Status = v
+			save = true
+		}
+
+		// DateTerminated changed ?
+		if v := after.DateTerminated; v != mj.DateTerminated {
+			mj.DateTerminated = v
+			save = true
+		}
+
+		// DatesReserved changed ?
+		if len(after.DatesReserved) != len(mj.DatesReserved) {
+			mj.DatesReserved = after.DatesReserved
+			save = true
+		}
+
+		// RetryCount changed ?
+		if v := after.RetryCount; v != mj.RetryCount {
+			mj.RetryCount = v
+			save = true
+		}
+
+		// Logs changed ?
+		if len(after.Logs) != len(mj.Logs) {
+			mj.Logs = after.Logs
+			save = true
+		}
+
+		if save {
+			if err := t.saveJob(mj); err != nil {
+				return err
+			}
+		}
+
 	}
 
 	return nil
 }
 
-func (t *Transaction) Log(ctx context.Context, jid jobq.ID, log string) error {
-	if log == "" {
+func (t *Transaction) Delete(ctx context.Context, jids []jobq.ID) error {
+	for _, jid := range jids {
+		mj, err := t.readJob(jid)
+		if err != nil {
+			if errors.Is(repo.ErrJobNotFound, err) {
+				continue
+			}
+
+			return err
+		}
+
+		if err := t.tx.Delete(mj.keyStatusIndex(mj.Status)); err != nil {
+			return err
+		}
+		if err := t.tx.Delete(mj.keyPayload()); err != nil {
+			return err
+		}
+		if err := t.tx.Delete(mj.keyJob()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (t *Transaction) Logf(ctx context.Context, jid jobq.ID, format string, args ...any) error {
+	if format == "" {
 		return nil
 	}
 
-	logs, err := t.Logs(ctx, jid)
+	mj, err := t.readJob(jid)
 	if err != nil {
 		return err
 	}
 
-	logs = append(logs, fmt.Sprintf("%s: %s", time.Now().Format(time.RFC3339Nano), log))
-	data, err := json.Marshal(logs)
-	if err != nil {
-		return err
-	}
+	log := time.Now().Format(time.RFC3339Nano) + ": " + fmt.Sprintf(format, args...)
+	mj.Logs = append(mj.Logs, log)
 
-	m := &modelJob{ID: jid}
-	err = t.tx.Set(m.keyLogs(), data)
-	if err != nil {
-		return err
-	}
-
-	t.needCommit = true
-
-	return nil
-}
-
-func (t *Transaction) SetOptions(ctx context.Context, jid jobq.ID, jo *jobq.JobOptions) error {
-	return fmt.Errorf("not yet implemented") //TODO:
+	return t.saveJob(mj)
 }

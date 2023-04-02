@@ -20,33 +20,38 @@ func (s *Service) Enqueue(ctx context.Context, topic jobq.Topic, pri jobq.Priori
 		jo.MaxRetries = jobq.DefaultJobOptions.MaxRetries
 	}
 
-	if jo.MinBackOff < 5*time.Second {
-		jo.MinBackOff = jobq.DefaultJobOptions.MinBackOff
+	if jo.MinBackOff < time.Second {
+		jo.MinBackOff = time.Second
 	}
 
 	if jo.MaxBackOff == 0 {
 		jo.MaxBackOff = jobq.DefaultJobOptions.MaxBackOff
 	}
 
-	txJob, err := s.jobRepo.NewTransaction()
+	tx, err := s.jobRepo.NewTransaction()
 	if err != nil {
 		return 0, err
 	}
-	defer txJob.Close()
+	defer tx.Close()
 
-	jid, err := txJob.Create(ctx, topic, pri, jo, payload)
-	if err != nil {
-		return 0, err
-	}
-
-	status, err := s.pqRepo.Push(ctx, topic, pri, jid, jo.DelayedAt)
+	jid, err := tx.Create(ctx, topic, pri, jo, payload)
 	if err != nil {
 		return 0, err
 	}
 
-	if err := txJob.SetStatus(ctx, []jobq.ID{jid}, status); err != nil {
-		return 0, err
+	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(jid)},
+		func(job *jobq.JobInfo) error {
+			status, err := s.pqRepo.Push(ctx, topic, pri, jid, jo.DelayedAt)
+			if err != nil {
+				return err
+			}
+
+			job.Status = status
+			return nil
+		})
+	if err != nil {
+		return 0, nil
 	}
 
-	return jid, txJob.Commit()
+	return jid, tx.Commit()
 }

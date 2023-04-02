@@ -2,87 +2,122 @@ package memory
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo"
 )
-
-func (t *Transaction) SetStatus(ctx context.Context, jids []jobq.ID, status jobq.Status) error {
-	a := t.a
-	now := time.Now()
-
-	for _, jid := range jids {
-		if job, found := a.jobs[jid]; found {
-			job.status = status
-			t.needCommit = true
-
-			switch status {
-			case jobq.JobStatusDone, jobq.JobStatusCanceled:
-				job.info.DateTerminated = now
-			case jobq.JobStatusReserved:
-				job.info.DateReserved = append(job.info.DateReserved, now)
-			}
-
-			if job.options.LogStatusChange {
-				job.log("Status change to: " + status.String())
-			}
-		}
-	}
-
-	return nil
-}
-
-func (t *Transaction) Log(ctx context.Context, jid jobq.ID, msg string) error {
-	a := t.a
-
-	if job, found := a.jobs[jid]; !found {
-		return jobq.ErrJobNotFound
-	} else {
-		job.log(msg)
-		t.needCommit = true
-	}
-
-	return nil
-}
-
-func (t *Transaction) SetOptions(ctx context.Context, jid jobq.ID, jo *jobq.JobOptions) error {
-	a := t.a
-
-	if m, found := a.jobs[jid]; found {
-		m.options = *jo
-
-		return nil
-	}
-
-	return jobq.ErrJobNotFound
-}
 
 // Create creates a new job and returns it's ID
 func (t *Transaction) Create(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jo jobq.JobOptions, payload jobq.Payload) (jobq.ID, error) {
-	a := t.a
-
 	if topic == "" {
 		return 0, jobq.ErrTopicIsMissing
 	}
 
-	jid := jobq.ID(a.jobSequence.Add(1))
-	model := &modelJob{
-		id:       jid,
-		topic:    topic,
-		priority: pri,
-		status:   jobq.JobStatusCreated,
-		payload:  payload,
-		options:  jo,
-		info:     jobq.JobInfo{DateCreated: time.Now()},
-		logs:     []string{},
+	newID := jobq.ID(t.a.jobSequence.Add(1))
+
+	mj := &modelJob{
+		ID:          newID,
+		Topic:       topic,
+		Priority:    pri,
+		Status:      jobq.JobStatusCreated,
+		DateCreated: time.Now(),
+		Options: modelJobOptions{
+			Name:            jo.Name,
+			Timeout:         jo.Timeout,
+			DelayedAt:       jo.DelayedAt,
+			MaxRetries:      jo.MaxRetries,
+			MinBackOff:      jo.MinBackOff,
+			MaxBackOff:      jo.MaxBackOff,
+			LogStatusChange: jo.LogStatusChange,
+		},
+		Payload: payload,
 	}
 
-	if model.options.LogStatusChange {
-		model.log("job created")
+	if mj.Options.LogStatusChange {
+		mj.Logs = append(mj.Logs, fmt.Sprintf("%s: Job status changed to: %s",
+			time.Now().Format(time.RFC3339Nano), mj.Status.String()))
 	}
 
-	a.jobs[jid] = model
+	t.a.jobs[newID] = mj
 	t.needCommit = true
 
-	return jid, nil
+	return newID, nil
+}
+
+func (t *Transaction) Update(ctx context.Context, jids []jobq.ID, updater func(job *jobq.JobInfo) error) error {
+	t.a.jobsLock.Lock()
+	defer t.a.jobsLock.Unlock()
+
+	for _, jid := range jids {
+
+		mj, found := t.a.jobs[jid]
+		if !found {
+			return repo.ErrJobNotFound
+		}
+
+		after := mj.ToDomain()
+		if err := updater(after); err != nil {
+			return err
+		}
+
+		// Status changed ?
+		if v := after.Status; v != mj.Status {
+			mj.Status = v
+		}
+
+		// DateTerminated changed ?
+		if v := after.DateTerminated; v != mj.DateTerminated {
+			mj.DateTerminated = v
+		}
+
+		// DatesReserved changed ?
+		if len(after.DatesReserved) != len(mj.DatesReserved) {
+			mj.DatesReserved = after.DatesReserved
+		}
+
+		// RetryCount changed ?
+		if v := after.RetryCount; v != mj.RetryCount {
+			mj.RetryCount = v
+		}
+
+		// Logs changed ?
+		if len(after.Logs) != len(mj.Logs) {
+			mj.Logs = after.Logs
+		}
+
+	}
+
+	return nil
+}
+
+func (t *Transaction) Delete(ctx context.Context, jids []jobq.ID) error {
+	t.a.jobsLock.Lock()
+	defer t.a.jobsLock.Unlock()
+
+	for _, jid := range jids {
+		delete(t.a.jobs, jid)
+	}
+
+	return nil
+}
+
+func (t *Transaction) Logf(ctx context.Context, jid jobq.ID, format string, args ...any) error {
+	if format == "" {
+		return nil
+	}
+
+	t.a.jobsLock.Lock()
+	defer t.a.jobsLock.Unlock()
+
+	mj, found := t.a.jobs[jid]
+	if !found {
+		return repo.ErrJobNotFound
+	}
+
+	log := time.Now().Format(time.RFC3339Nano) + ": " + fmt.Sprintf(format, args...)
+	mj.Logs = append(mj.Logs, log)
+
+	return nil
 }

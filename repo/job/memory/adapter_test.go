@@ -31,34 +31,32 @@ func TestAdapter(t *testing.T) {
 	require.NoError(err)
 	require.Equal(jobq.ID(1), jid)
 
-	jids, err := tx.ListByStatus(context.Background(), jobq.JobStatusCreated, 0, 0)
+	jids, err := tx.FindByStatus(context.Background(), jobq.JobStatusCreated, 0, 0)
 	require.NoError(err)
 	require.Len(jids, 1)
 
-	err = tx.SetStatus(context.Background(), []jobq.ID{jid}, jobq.JobStatusReady)
+	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(jid)},
+		func(job *jobq.JobInfo) error {
+			job.Status = jobq.JobStatusReady
+			return nil
+		})
 	require.NoError(err)
 
-	jids, err = tx.ListByStatus(context.Background(), jobq.JobStatusCreated, 0, 0)
+	jids, err = tx.FindByStatus(context.Background(), jobq.JobStatusCreated, 0, 0)
 	require.NoError(err)
 	require.Len(jids, 0)
 
-	err = tx.Log(context.Background(), jid, "log test")
+	err = tx.Logf(context.Background(), jid, "log test")
 	require.NoError(err)
 
-	logs, err := tx.Logs(context.Background(), jid)
+	jobs, err := tx.Read(context.Background(), []jobq.ID{jid})
 	require.NoError(err)
-	require.Len(logs, 3)
+	require.Len(jobs, 1)
+	job := jobs[0]
 
-	infos, err := tx.GetInfos(context.Background(), []jobq.ID{jid})
-	require.NoError(err)
-	require.Len(infos, 1)
-
-	info := infos[0]
-	require.Equal("test", string(info.Topic))
-	require.Equal(-10, int(info.Priority))
-	require.Equal(jobq.JobStatusReady, info.Status)
-
-	status, err := tx.GetStatus(context.Background(), jid)
-	require.NoError(err)
-	require.Equal(status, info.Status)
+	require.Len(job.Logs, 2)
+	require.Equal("test", string(job.Topic))
+	require.Equal(-10, int(job.Priority))
+	require.Equal(jobq.JobStatusReady, job.Status)
+	require.Equal(jobq.JobStatusReady, job.Status)
 }
