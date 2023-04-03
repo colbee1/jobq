@@ -27,8 +27,6 @@ type IJobQueueService interface {
 	// TopicStats returns some stats about topic.
 	TopicStats(ctx context.Context, topic jobq.Topic) (repo.TopicStats, error)
 
-	GetJobs(ctx context.Context, []jobq.ID) ([]*jobq.JobInfo, error)
-	
 	Close() error
 }
 

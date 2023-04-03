@@ -8,29 +8,7 @@ import (
 
 	"github.com/colbee1/jobq"
 	"github.com/colbee1/jobq/repo"
-	"github.com/dgraph-io/badger/v3"
 )
-
-func (t *Transaction) readJob(jid jobq.ID) (*modelJob, error) {
-	m := &modelJob{ID: jid}
-	itm, err := t.tx.Get(m.keyJob())
-	if err != nil {
-		if err == badger.ErrKeyNotFound {
-			return nil, fmt.Errorf("%w: %d", repo.ErrJobNotFound, jid)
-		}
-
-		return nil, err
-	}
-	data, err := itm.ValueCopy(nil)
-	if err != nil {
-		return nil, err
-	}
-	if err := m.Decode(data); err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
 
 func (t *Transaction) saveJob(mj *modelJob) error {
 	data, err := mj.Encode()
@@ -103,6 +81,7 @@ func (t *Transaction) Update(ctx context.Context, jids []jobq.ID, updater func(j
 
 		mj, err := t.readJob(jid)
 		if err != nil {
+			fmt.Printf("$$$ job not found\n")
 			return err
 		}
 
@@ -116,6 +95,7 @@ func (t *Transaction) Update(ctx context.Context, jids []jobq.ID, updater func(j
 		// Status changed ?
 		if v := after.Status; v != mj.Status {
 			if err := t.tx.Delete(mj.keyStatusIndex(mj.Status)); err != nil {
+				fmt.Printf("delete key: %s: %v\n", mj.keyStatusIndex(mj.Status), err)
 				return err
 			}
 			if err := t.tx.Set(mj.keyStatusIndex(v), []byte{}); err != nil {

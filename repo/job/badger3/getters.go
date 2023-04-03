@@ -3,6 +3,7 @@ package badger3
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/colbee1/jobq"
@@ -11,12 +12,33 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (t *Transaction) Read(ctx context.Context, jids []jobq.ID) ([]*jobq.JobInfo, error) {
-	jobs := make([]*jobq.JobInfo, 0, len(jids))
-	if len(jids) == 0 {
-		return jobs, nil
+func (t *Transaction) readJob(jid jobq.ID) (*modelJob, error) {
+	mj := &modelJob{ID: jid}
+	itm, err := t.tx.Get(mj.keyJob())
+	if err != nil {
+		if err == badger.ErrKeyNotFound {
+			return nil, fmt.Errorf("readJob(): %w: id=%d, key=%s", repo.ErrJobNotFound, jid, mj.keyJob())
+		}
+
+		return nil, err
+	}
+	data, err := itm.ValueCopy(nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := mj.Decode(data); err != nil {
+		return nil, err
 	}
 
+	return mj, nil
+}
+
+func (t *Transaction) Read(ctx context.Context, jids []jobq.ID) ([]*jobq.JobInfo, error) {
+	if len(jids) == 0 {
+		return []*jobq.JobInfo{}, nil
+	}
+
+	jobs := make([]*jobq.JobInfo, 0, len(jids))
 	for _, jid := range jids {
 		mj, err := t.readJob(jid)
 		if err != nil {

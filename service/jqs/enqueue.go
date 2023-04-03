@@ -39,18 +39,18 @@ func (s *Service) Enqueue(ctx context.Context, topic jobq.Topic, pri jobq.Priori
 		return 0, err
 	}
 
-	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(jid)},
+	err = tx.Update(context.Background(), []jobq.ID{jid},
 		func(job *jobq.JobInfo) error {
 			status, err := s.pqRepo.Push(ctx, topic, pri, jid, jo.DelayedAt)
 			if err != nil {
 				return err
 			}
-
 			job.Status = status
+
 			return nil
 		})
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	return jid, tx.Commit()

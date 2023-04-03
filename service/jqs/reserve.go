@@ -2,15 +2,21 @@ package jqs
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/colbee1/jobq"
 	"github.com/colbee1/jobq/service"
 )
 
-// Reserve reserves up to <limit> ready jobs
+// Reserve reserves up to <limit> Ready jobs
 func (s *Service) Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]service.IJobService, error) {
 	if topic == "" {
 		topic = DefaultTopic
+	}
+
+	if limit == 0 {
+		return []service.IJobService{}, nil
 	}
 
 	tx, err := s.jobRepo.NewTransaction()
@@ -19,27 +25,30 @@ func (s *Service) Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]s
 	}
 	defer tx.Close()
 
-	// Pop ids from priority queue
-	//
-	jids, err := s.pqRepo.Pop(ctx, topic, limit)
+	jids, err := s.pqRepo.PopTopic(ctx, topic, limit)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("____ poped jids: %+v\n", jids)
+
 	if len(jids) == 0 {
 		return []service.IJobService{}, nil
 	}
 
-	jobs := make([]service.IJobService, 0, len(jids))
+	jobs := make([]service.IJobService, 0, limit)
 	err = tx.Update(context.Background(), jids,
 		func(job *jobq.JobInfo) error {
 			job.Status = jobq.JobStatusReserved
+			job.DatesReserved = append(job.DatesReserved, time.Now())
+
 			jobs = append(jobs, &Job{service: s, id: job.ID})
+
 			return nil
 		})
 	if err != nil {
 		for _, job := range jobs {
 			// TODO: find a better way to handle orphan jobs
-			job.Retry(0)
+			job.Retry(0) // 0 == use job backoff delay
 		}
 
 		return nil, err

@@ -11,6 +11,10 @@ func (h *JobMinHeap) Push(x any) {
 }
 
 func (h *JobMinHeap) Pop() any {
+	if len(*h) == 0 {
+		return nil
+	}
+
 	old := *h
 	n := len(old)
 	x := old[n-1]
@@ -21,5 +25,9 @@ func (h *JobMinHeap) Pop() any {
 }
 
 func (h JobMinHeap) Peek() any {
+	if len(h) == 0 {
+		return nil
+	}
+
 	return h[0]
 }

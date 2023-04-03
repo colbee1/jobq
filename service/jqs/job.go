@@ -72,6 +72,8 @@ func (j *Job) Cancel() error {
 	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(j.id)},
 		func(job *jobq.JobInfo) error {
 			job.Status = jobq.JobStatusCanceled
+			job.DateTerminated = time.Now()
+
 			return nil
 		})
 	if err != nil {
@@ -91,10 +93,12 @@ func (j *Job) Done() error {
 	err = tx.Update(context.Background(), []jobq.ID{jobq.ID(j.id)},
 		func(job *jobq.JobInfo) error {
 			if job.Status != jobq.JobStatusReserved {
-				return fmt.Errorf("%w: status must be Reserved to be done", service.ErrInvalidStatus)
+				return fmt.Errorf("%w: status must be Reserved to be switched to Done", service.ErrInvalidStatus)
 			}
 
 			job.Status = jobq.JobStatusDone
+			job.DateTerminated = time.Now()
+
 			return nil
 		})
 	if err != nil {

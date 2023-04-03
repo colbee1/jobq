@@ -13,9 +13,21 @@ func New(jobRepo repo.IJobRepository, pqRepo repo.IJobPriorityQueueRepository) (
 		return nil, err
 	}
 
-	return &Service{jobRepo: jobRepo, pqRepo: pqRepo}, nil
+	s := &Service{
+		jobRepo:   jobRepo,
+		pqRepo:    pqRepo,
+		exitSched: make(chan struct{}, 1),
+	}
+
+	s.wg.Add(1)
+	go s.scheduleDelayedJobs(s.exitSched)
+
+	return s, nil
 }
 
 func (s *Service) Close() error {
+	close(s.exitSched)
+	s.wg.Wait()
+
 	return nil
 }

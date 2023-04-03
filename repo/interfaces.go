@@ -12,6 +12,7 @@ import (
 //
 
 type IJobRepository interface {
+	// NewTransaction Creates a new transaction.
 	NewTransaction() (IJobRepositoryTransaction, error)
 
 	// Durable returns true when repository can survive to an application crash.
@@ -50,15 +51,20 @@ type IJobRepositoryTransaction interface {
 // Priority Queue repository interfaces
 //
 
+const TopicDelayed = "$delayed$"
+
 type IJobPriorityQueueRepository interface {
 	// Push adds a new jobid in job queue.
 	Push(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jid jobq.ID, delayedAt time.Time) (jobq.Status, error)
 
-	// Pop returns up to <limit> jobs ordered by priority.
-	Pop(ctx context.Context, topic jobq.Topic, limit int) ([]jobq.ID, error)
+	// Pop returns up to <limit> jobs ordered by priority from <topic> queue.
+	PopTopic(ctx context.Context, topic jobq.Topic, limit int) ([]jobq.ID, error)
+
+	// PopDelayed returns up to <limit> jobs where delay is expided.
+	PopDelayed(ctx context.Context, limit int) ([]jobq.ID, error)
 
 	// Len returns the number of jobs in priority queue.
-	Len(ctx context.Context, topic jobq.Topic) (int, error)
+	// Len(ctx context.Context, topic jobq.Topic) (int, error)
 
 	// Durable returns true when repository can survive to an application crash.
 	Durable() bool
@@ -75,6 +81,7 @@ type IJobPriorityQueueRepository interface {
 type TopicStats struct {
 	DateCreated          time.Time
 	DateLastPush         time.Time
+	Count                int64
 	PushTotalCount       int64
 	MaxQueueLen          int64
 	CurrentQueueCapacity int64

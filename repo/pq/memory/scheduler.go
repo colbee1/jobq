@@ -1,7 +1,9 @@
 package memory
 
+/*
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -23,18 +25,23 @@ loop:
 		case t := <-secTicker.C:
 			ts := t.Unix()
 			for {
-				if a.pqDelayed.Len() == 0 {
-					break
-				}
+				// if a.pqDelayed.Len() == 0 {
+				// 	break
+				// }
 
 				jitem := a.pqDelayed.Peek()
-				if jitem.heapPriority > ts {
+				if jitem == nil || jitem.heapPriority > ts {
 					break
 				}
 
 				jitems, _ := a.pqDelayed.Pop(1)
-				jitem = jitems[0]
-				a.Push(context.Background(), jitem.Topic, jitem.Priority, jitem.JobID, time.Time{})
+				if len(jitems) == 1 {
+					jitem = jitems[0]
+					_, err := a.Push(context.Background(), jitem.Topic, jitem.Priority, jitem.JobID, time.Time{})
+					if err != nil {
+						fmt.Print(err)
+					}
+				}
 			}
 
 		case <-recapTicker.C:
@@ -45,3 +52,4 @@ loop:
 		}
 	}
 }
+*/

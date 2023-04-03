@@ -52,7 +52,8 @@ func TestAdapterCreate(t *testing.T) {
 	jid, err := tx.Create(context.Background(), jobTestTopic, -100, opts, jobq.Payload("Hello world"))
 	require.NoError(err)
 	require.Equal(jobq.ID(1), jid)
-	tx.Commit()
+	err = tx.Commit()
+	require.NoError(err)
 }
 
 func TestAdapterRead(t *testing.T) {
@@ -111,7 +112,8 @@ func TestAdapterUpdate(t *testing.T) {
 			return nil
 		})
 	require.NoError(err)
-	tx.Commit()
+	err = tx.Commit()
+	require.NoError(err)
 }
 
 func TestAdapterGetStatus2(t *testing.T) {

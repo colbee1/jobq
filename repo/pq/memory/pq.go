@@ -44,6 +44,7 @@ func (pq *JobQueue) Stats() repo.TopicStats {
 	return repo.TopicStats{
 		DateCreated:          pq.dateCreated,
 		DateLastPush:         pq.dateLastPush,
+		Count:                int64(pq.Len()),
 		PushTotalCount:       pq.pushTotalCount,
 		MaxQueueLen:          pq.maxQueueLen,
 		CurrentQueueCapacity: int64(cap(pq.queue)),
@@ -70,15 +71,15 @@ func (pq *JobQueue) Push(jitem *JobItem) {
 	}
 }
 
-func (pq *JobQueue) Pop(limit uint) ([]*JobItem, error) {
-	resp := make([]*JobItem, 0, limit)
-	if limit == 0 {
-		return resp, nil
+func (pq *JobQueue) Pop(limit int) ([]*JobItem, error) {
+	if limit < 1 {
+		return []*JobItem{}, nil
 	}
 
 	pq.mu.Lock()
 	defer pq.mu.Unlock()
 
+	resp := make([]*JobItem, 0, limit)
 	for ; limit > 0 && pq.queue.Len() > 0; limit-- {
 		item := heap.Pop(&pq.queue).(*JobItem)
 		resp = append(resp, item)
@@ -91,7 +92,11 @@ func (pq *JobQueue) Peek() *JobItem {
 	pq.mu.RLock()
 	defer pq.mu.RUnlock()
 
-	return pq.queue.Peek().(*JobItem)
+	if v, ok := pq.queue.Peek().(*JobItem); ok {
+		return v
+	}
+
+	return nil
 }
 
 // Recap purposes is avoiding continuously growing array

@@ -2,7 +2,6 @@ package memory
 
 import (
 	"context"
-	"sync"
 
 	"github.com/colbee1/jobq"
 )
@@ -10,8 +9,6 @@ import (
 type Adapter struct {
 	pqByTopic map[jobq.Topic]*JobQueue
 	pqDelayed *JobQueue
-	exit      chan struct{}
-	wg        sync.WaitGroup
 }
 
 func (a *Adapter) Len(ctx context.Context, topic jobq.Topic) (int, error) {
