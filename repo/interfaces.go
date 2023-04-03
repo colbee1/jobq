@@ -51,8 +51,6 @@ type IJobRepositoryTransaction interface {
 // Priority Queue repository interfaces
 //
 
-const TopicDelayed = "$delayed$"
-
 type IJobPriorityQueueRepository interface {
 	// Push adds a new jobid in job queue.
 	Push(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jid jobq.ID, delayedAt time.Time) (jobq.Status, error)
