@@ -2,7 +2,6 @@ package jqs
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/colbee1/jobq"
 )
@@ -12,9 +11,9 @@ func (s *Service) Available(ctx context.Context, topic jobq.Topic) (int, error) 
 		topic = DefaultTopic
 	}
 
-	return 0, fmt.Errorf("not yet available")
+	return s.pqRepo.AvailableTopic(ctx, topic)
 }
 
 func (s *Service) Delayed(ctx context.Context) (int, error) {
-	return 0, fmt.Errorf("not yet available")
+	return s.pqRepo.AvailableDelayed(ctx)
 }

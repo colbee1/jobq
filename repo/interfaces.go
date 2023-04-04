@@ -61,8 +61,12 @@ type IJobPriorityQueueRepository interface {
 	// PopDelayed returns up to <limit> jobs where delay is expided.
 	PopDelayed(ctx context.Context, limit int) ([]jobq.ID, error)
 
-	// Len returns the number of jobs in priority queue.
-	// Len(ctx context.Context, topic jobq.Topic) (int, error)
+	// AvailableTopic returns the number of jobs in <topic> queue.
+	// If topc doesn't exists repo.
+	AvailableTopic(ctx context.Context, topic jobq.Topic) (int, error)
+
+	// AvailableTopic returns the number of jobs in delayed queue.
+	AvailableDelayed(ctx context.Context) (int, error)
 
 	// Durable returns true when repository can survive to an application crash.
 	Durable() bool

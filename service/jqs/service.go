@@ -7,7 +7,7 @@ import (
 	"github.com/colbee1/jobq/service"
 )
 
-var _ service.IJobQueueService = (*Service)(nil)
+var _ service.IJobQueue = (*Service)(nil)
 
 const DefaultTopic = "$dflt"
 

@@ -10,13 +10,13 @@ import (
 )
 
 // Reserve reserves up to <limit> Ready jobs
-func (s *Service) Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]service.IJobService, error) {
+func (s *Service) Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]service.IJob, error) {
 	if topic == "" {
 		topic = DefaultTopic
 	}
 
 	if limit == 0 {
-		return []service.IJobService{}, nil
+		return []service.IJob{}, nil
 	}
 
 	tx, err := s.jobRepo.NewTransaction()
@@ -32,10 +32,10 @@ func (s *Service) Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]s
 	fmt.Printf("____ poped jids: %+v\n", jids)
 
 	if len(jids) == 0 {
-		return []service.IJobService{}, nil
+		return []service.IJob{}, nil
 	}
 
-	jobs := make([]service.IJobService, 0, limit)
+	jobs := make([]service.IJob, 0, limit)
 	err = tx.Update(context.Background(), jids,
 		func(job *jobq.JobInfo) error {
 			job.Status = jobq.JobStatusReserved

@@ -8,12 +8,12 @@ import (
 	"github.com/colbee1/jobq/repo"
 )
 
-type IJobQueueService interface {
+type IJobQueue interface {
 	// Add a new job.
 	Enqueue(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jo jobq.JobOptions, payload jobq.Payload) (jobq.ID, error)
 
 	// Reserve up to <limit> jobs.
-	Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]IJobService, error)
+	Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]IJob, error)
 
 	// Available returns the number of jobs ready to be reserved.
 	Available(ctx context.Context, topic jobq.Topic) (int, error)
@@ -30,7 +30,7 @@ type IJobQueueService interface {
 	Close() error
 }
 
-type IJobService interface {
+type IJob interface {
 	ID() jobq.ID
 	Unwrap() (*jobq.JobInfo, error)
 	Payload() (jobq.Payload, error)
