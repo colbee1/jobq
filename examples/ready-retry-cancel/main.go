@@ -66,7 +66,7 @@ func run() error {
 	return nil
 }
 
-func consumer(jq service.IJobQueueService, wg *sync.WaitGroup) {
+func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	time.Sleep(5 * time.Second)

@@ -106,7 +106,7 @@ func run() error {
 	return nil
 }
 
-func producer(jq service.IJobQueueService) {
+func producer(jq service.IJobQueue) {
 	prng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	upper := math.MaxInt16
 	lower := math.MinInt16
@@ -125,7 +125,7 @@ func producer(jq service.IJobQueueService) {
 
 }
 
-func consumer(jq service.IJobQueueService, wg *sync.WaitGroup) {
+func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	batchTicker := time.NewTicker(2 * time.Second)
