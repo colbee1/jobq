@@ -69,7 +69,6 @@ func run() error {
 func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	time.Sleep(5 * time.Second)
 	fmt.Printf("Wait at most 5 seconds for 1 job...\n")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -86,7 +85,6 @@ func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
 	jobs[0].Retry(2 * time.Second)
 	fmt.Printf("Job will be retried in 2 seconds...\n")
 
-	time.Sleep(5 * time.Second)
 	fmt.Printf("Wait at most 5 seconds for 3 new jobs...\n")
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -101,6 +99,15 @@ func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
 	}
 	fmt.Printf("Got job: %v, then cancel\n", jobs)
 	jobs[0].Cancel()
+
+	fmt.Printf("Wait at most 0 seconds for 10 jobs...\n")
+	jobs, err = jq.Reserve(context.Background(), Topic, 10)
+	if err != nil {
+		panic(err)
+	}
+	if len(jobs) != 0 {
+		panic("len(jobs) must be zero")
+	}
 }
 
 func showByStatus(repo repo.IJobRepository) error {

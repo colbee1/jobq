@@ -15,44 +15,72 @@ func (s *Service) Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]s
 		topic = DefaultTopic
 	}
 
-	if limit == 0 {
-		return []service.IJob{}, nil
-	}
-
-	tx, err := s.jobRepo.NewTransaction()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Close()
-
-	jids, err := s.pqRepo.PopTopic(ctx, topic, limit)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Printf("____ poped jids: %+v\n", jids)
-
-	if len(jids) == 0 {
+	if limit < 1 {
 		return []service.IJob{}, nil
 	}
 
 	jobs := make([]service.IJob, 0, limit)
-	err = tx.Update(context.Background(), jids,
-		func(job *jobq.JobInfo) error {
-			job.Status = jobq.JobStatusReserved
-			job.DatesReserved = append(job.DatesReserved, time.Now())
 
-			jobs = append(jobs, &Job{service: s, id: job.ID})
-
+	reserve := func(max int) error {
+		jids, err := s.pqRepo.PopTopic(ctx, topic, max)
+		if err != nil {
+			return err
+		}
+		if len(jids) == 0 {
 			return nil
-		})
-	if err != nil {
-		for _, job := range jobs {
-			// TODO: find a better way to handle orphan jobs
-			job.Retry(0) // 0 == use job backoff delay
 		}
 
-		return nil, err
+		tx, err := s.jobRepo.NewTransaction()
+		if err != nil {
+			return err
+		}
+		defer tx.Close()
+		err = tx.Update(context.Background(), jids,
+			func(job *jobq.JobInfo) error {
+				job.Status = jobq.JobStatusReserved
+				job.DatesReserved = append(job.DatesReserved, time.Now())
+
+				jobs = append(jobs, &Job{service: s, id: job.ID})
+
+				return nil
+			})
+		if err != nil {
+			return err
+		}
+
+		return tx.Commit()
 	}
 
-	return jobs, tx.Commit()
+	if err := reserve(limit); err != nil {
+		return jobs, err
+	}
+
+	_, withTimeout := ctx.Deadline()
+	if !withTimeout || len(jobs) == limit {
+		return jobs, nil
+	}
+
+	fmt.Printf("reserve with timeout...\n")
+
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+
+loop:
+	for {
+		select {
+
+		case <-ctx.Done():
+			break loop
+
+		case <-ticker.C:
+			if err := reserve(limit - len(jobs)); err != nil {
+				return jobs, err
+			}
+			if len(jobs) == limit {
+				break loop
+			}
+		}
+	}
+
+	return jobs, nil
 }
