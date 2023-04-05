@@ -61,6 +61,9 @@ type IJobPriorityQueueRepository interface {
 	// PopDelayed returns up to <limit> jobs where delay is expided.
 	PopDelayed(ctx context.Context, limit int) ([]jobq.ID, error)
 
+	// Create a new topic
+	CreateTopic(ctx context.Context, topic jobq.Topic) error
+
 	// AvailableTopic returns the number of jobs in <topic> queue.
 	// If topc doesn't exists repo.
 	AvailableTopic(ctx context.Context, topic jobq.Topic) (int, error)
