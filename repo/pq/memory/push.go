@@ -32,7 +32,9 @@ func (a *Adapter) Push(ctx context.Context, topic jobq.Topic, pri jobq.Priority,
 
 	pq, found := a.pqByTopic[topic]
 	if !found {
-		a.pqByTopic[topic] = newJobQueue()
+		if err := a.CreateTopic(ctx, topic); err != nil {
+			return jobq.JobStatusUndefined, err
+		}
 		pq = a.pqByTopic[topic]
 	}
 

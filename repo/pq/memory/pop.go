@@ -7,7 +7,7 @@ import (
 	"github.com/colbee1/jobq"
 )
 
-func (a *Adapter) PopTopic(_ context.Context, topic jobq.Topic, limit int) ([]jobq.ID, error) {
+func (a *Adapter) PopTopic(ctx context.Context, topic jobq.Topic, limit int) ([]jobq.ID, error) {
 	if limit < 1 {
 		return []jobq.ID{}, nil
 	}
@@ -18,7 +18,9 @@ func (a *Adapter) PopTopic(_ context.Context, topic jobq.Topic, limit int) ([]jo
 
 	pq, found := a.pqByTopic[topic]
 	if !found {
-		a.pqByTopic[topic] = newJobQueue()
+		if err := a.CreateTopic(ctx, topic); err != nil {
+			return nil, err
+		}
 		pq = a.pqByTopic[topic]
 	}
 

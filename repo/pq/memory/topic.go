@@ -7,6 +7,14 @@ import (
 	"github.com/colbee1/jobq/repo"
 )
 
+func (a *Adapter) CreateTopic(ctx context.Context, topic jobq.Topic) error {
+	if _, found := a.pqByTopic[topic]; !found {
+		a.pqByTopic[topic] = newJobQueue()
+	}
+
+	return nil
+}
+
 func (a *Adapter) Topics(ctx context.Context, offset int, limit int) ([]jobq.Topic, error) {
 	ret := make([]jobq.Topic, 0, len(a.pqByTopic))
 
