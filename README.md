@@ -24,7 +24,7 @@ jobq is a simple embeddable golang package to handle jobs/tasks/xxx asynchronous
 - Job timeout.
 - Auto cleanup unused topics.
 
-# Design
+## Design
 
 ![design](design.svg)
 
