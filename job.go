@@ -1,6 +1,8 @@
 package jobq
 
 import (
+	"math"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,23 +27,27 @@ var DefaultJobOptions = JobOptions{
 type JobInfo struct {
 	ID             ID
 	Topic          Topic
-	Priority       Priority
+	Weight         Weight
 	Status         Status
 	DateCreated    time.Time
 	DateTerminated time.Time
 	DatesReserved  []time.Time
-	RetryCount     uint // == len(DateReserved) - 1
+	RetryCount     uint
+	ResetCount     uint
 	Options        JobOptions
 	Logs           []string
 }
 
 type (
-	ID       uint64
-	Status   int16
-	Priority int16
-	Topic    string
-	Payload  []byte
+	ID      uint64
+	Status  int16
+	Weight  int16
+	Topic   string
+	Payload []byte
 )
+
+const WeightMin = math.MinInt16
+const WeightMax = math.MaxInt16
 
 const (
 	JobStatusUndefined = Status(-666)
@@ -70,6 +76,28 @@ func (s Status) String() string {
 	}
 
 	return "Undefined!"
+}
+
+func NewTopicFromString(s string) Topic {
+	return Topic(s)
+}
+
+func NewJobIDFromString(s string) (ID, error) {
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err == nil {
+		return ID(id), nil
+	}
+
+	return 0, err
+}
+
+func NewWeightFromString(s string) (Weight, error) {
+	w, err := strconv.ParseInt(s, 10, 64)
+	if err == nil {
+		return Weight(w), nil
+	}
+
+	return 0, err
 }
 
 func NewStatusFromString(s string) Status {
