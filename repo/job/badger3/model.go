@@ -13,12 +13,13 @@ type (
 	modelJob struct {
 		ID             jobq.ID         `json:"id"`
 		Topic          jobq.Topic      `json:"topic"`
-		Priority       jobq.Priority   `json:"pri"`
+		Weight         jobq.Weight     `json:"pri"`
 		Status         jobq.Status     `json:"status"`
 		DateCreated    time.Time       `json:"dateCreated"`
 		DateTerminated time.Time       `json:"dateTerminated"`
 		DatesReserved  []time.Time     `json:"datesReserved"`
 		RetryCount     uint            `json:"retryCount"`
+		ResetCount     uint            `json:"resetCount"`
 		Options        modelJobOptions `json:"options"`
 		Logs           []string        `json:"logs"`
 	}
@@ -41,16 +42,38 @@ var (
 	prefixKeyStatusIndex = []byte("i:j:s:")
 )
 
+func (m *modelJob) FromDomain(j *jobq.JobInfo) {
+	m.ID = j.ID
+	m.Topic = j.Topic
+	m.Weight = j.Weight
+	m.Status = j.Status
+	m.DateCreated = j.DateCreated
+	m.DateTerminated = j.DateTerminated
+	m.DatesReserved = j.DatesReserved
+	m.RetryCount = j.RetryCount
+	m.ResetCount = j.ResetCount
+	m.Logs = j.Logs
+	m.Options.Name = j.Options.Name
+	m.Options.Timeout = j.Options.Timeout
+	m.Options.DelayedAt = j.Options.DelayedAt
+	m.Options.MaxRetries = j.Options.MaxRetries
+	m.Options.MinBackOff = j.Options.MinBackOff
+	m.Options.MaxBackOff = j.Options.MaxBackOff
+	m.Options.LogStatusChange = j.Options.LogStatusChange
+
+}
+
 func (m *modelJob) ToDomain() *jobq.JobInfo {
 	return &jobq.JobInfo{
 		ID:             m.ID,
 		Topic:          m.Topic,
-		Priority:       m.Priority,
+		Weight:         m.Weight,
 		Status:         m.Status,
 		DateCreated:    m.DateCreated,
 		DateTerminated: m.DateTerminated,
 		DatesReserved:  m.DatesReserved,
 		RetryCount:     m.RetryCount,
+		ResetCount:     m.ResetCount,
 		Options: jobq.JobOptions{
 			Name:            m.Options.Name,
 			Timeout:         m.Options.Timeout,
@@ -93,10 +116,9 @@ func (m *modelJob) Encode() ([]byte, error) {
 func (m *modelJob) Decode(data []byte) error {
 	mjo := modelJob{}
 	err := json.Unmarshal(data, &mjo)
-	if err != nil {
-		return err
+	if err == nil {
+		*m = mjo
 	}
-	*m = mjo
 
-	return nil
+	return err
 }

@@ -1,6 +1,8 @@
 package memory
 
-import "github.com/colbee1/jobq/repo"
+import (
+	repo "github.com/colbee1/jobq/repo/job"
+)
 
 // memory adapter doesn't support transaction
 

@@ -23,10 +23,13 @@ func TestJobHeap1(t *testing.T) {
 	ji4 := &JobItem{heapPriority: -3, JobID: 4}
 	h.Push(ji4)
 
-	jis, err := h.Pop(10)
-	require.NoError(err)
-	require.Len(jis, 4)
-	require.Equal([]*JobItem{ji3, ji4, ji2, ji1}, jis)
+	jobs := []*JobItem{}
+	for i := 0; i < 10; i++ {
+		if job := h.Pop(); job != nil {
+			jobs = append(jobs, job)
+		}
+	}
+	require.Equal([]*JobItem{ji3, ji4, ji2, ji1}, jobs)
 }
 
 func TestJobHeap2(t *testing.T) {
@@ -43,8 +46,11 @@ func TestJobHeap2(t *testing.T) {
 	ji3 := &JobItem{heapPriority: 1679394532, JobID: 3}
 	h.Push(ji3)
 
-	jis, err := h.Pop(10)
-	require.NoError(err)
-	require.Len(jis, 3)
-	require.Equal([]*JobItem{ji2, ji3, ji1}, jis)
+	jobs := []*JobItem{}
+	for i := 0; i < 10; i++ {
+		if job := h.Pop(); job != nil {
+			jobs = append(jobs, job)
+		}
+	}
+	require.Equal([]*JobItem{ji2, ji3, ji1}, jobs)
 }

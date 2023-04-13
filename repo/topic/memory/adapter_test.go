@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/colbee1/jobq"
+	"github.com/colbee1/jobq/repo/topic"
 
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ import (
 func TestAdapter(t *testing.T) {
 	require := require.New(t)
 
-	repo, err := New()
+	repo, err := New(topic.RepositoryOptions{StatsCollector: true})
 	require.NoError(err)
 	require.NotNil(repo)
 	defer repo.Close()
@@ -24,10 +25,6 @@ func TestAdapter(t *testing.T) {
 	status, err := repo.Push(ctx, topic, 0, jobq.ID(1), time.Time{})
 	require.NoError(err)
 	require.Equal(jobq.JobStatusReady, status)
-
-	l, err := repo.Len(ctx, topic)
-	require.NoError(err)
-	require.Equal(1, l)
 
 	jids, err := repo.PopTopic(ctx, topic, 10)
 	require.NoError(err)
@@ -48,11 +45,6 @@ func TestAdapter(t *testing.T) {
 	require.NoError(err)
 	require.Equal(jobq.JobStatusDelayed, status)
 
-	// because jobs are delayed, queue length must be empty
-	l, err = repo.Len(ctx, topic)
-	require.NoError(err)
-	require.Equal(0, l)
-
 	// Poping right now on delayed queue should returns empty array
 	jids, err = repo.PopDelayed(ctx, 10)
 	require.NoError(err)
@@ -69,8 +61,12 @@ func TestAdapter(t *testing.T) {
 
 	require.False(repo.Durable())
 
+	time.Sleep(100 * time.Millisecond) // wait a moment because stats collecting is asynchronous
 	stats, err := repo.TopicStats(context.Background(), topic)
 	require.NoError(err)
-	require.Equal(int64(0), stats.Count)
-	require.Equal(int64(1), stats.PushTotalCount)
+	require.Equal(stats.PushTotalCount, stats.PopTotalCount)
+
+	stats, err = repo.TopicStats(context.Background(), "delayed")
+	require.NoError(err)
+	require.Equal(stats.PushTotalCount, stats.PopTotalCount)
 }

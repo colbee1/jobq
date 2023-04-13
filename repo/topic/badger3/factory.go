@@ -1,6 +1,7 @@
 package badger3
 
 import (
+	"github.com/colbee1/jobq/repo/topic"
 	"github.com/dgraph-io/badger/v3"
 )
 
@@ -13,15 +14,12 @@ func New(dbPath string, options RepositoryOptions) (*Adapter, error) {
 		return nil, err
 	}
 
-	seq, err := db.GetSequence(prefixKeyIdSequence, 1000)
-	if err != nil {
-		db.Close()
-		return nil, err
+	a := &Adapter{
+		db: db,
 	}
 
-	a := &Adapter{
-		db:       db,
-		jobIdSeq: seq,
+	if options.StatsCollector {
+		a.statsCollector = topic.StartStatsCollector(topic.CollectorDefaultQueueSize)
 	}
 
 	if options.DropDB {
@@ -36,8 +34,8 @@ func New(dbPath string, options RepositoryOptions) (*Adapter, error) {
 }
 
 func (a *Adapter) Close() error {
-	if a.jobIdSeq != nil {
-		a.jobIdSeq.Release()
+	if a.statsCollector != nil {
+		a.statsCollector.Close()
 	}
 
 	if a.db != nil && !a.db.IsClosed() {

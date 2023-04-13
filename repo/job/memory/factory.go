@@ -2,7 +2,7 @@ package memory
 
 import (
 	"github.com/colbee1/jobq"
-	"github.com/colbee1/jobq/repo"
+	repo "github.com/colbee1/jobq/repo/job"
 )
 
 func New() (*Adapter, error) {

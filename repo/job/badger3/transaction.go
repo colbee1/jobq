@@ -1,7 +1,7 @@
 package badger3
 
 import (
-	"github.com/colbee1/jobq/repo"
+	repo "github.com/colbee1/jobq/repo/job"
 	"github.com/dgraph-io/badger/v3"
 )
 

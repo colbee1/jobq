@@ -10,7 +10,7 @@ type (
 	modelJob struct {
 		ID             jobq.ID
 		Topic          jobq.Topic
-		Priority       jobq.Priority
+		Priority       jobq.Weight
 		Status         jobq.Status
 		DateCreated    time.Time
 		DateTerminated time.Time
@@ -36,7 +36,7 @@ func (m *modelJob) ToDomain() *jobq.JobInfo {
 	return &jobq.JobInfo{
 		ID:             m.ID,
 		Topic:          m.Topic,
-		Priority:       m.Priority,
+		Weight:         m.Priority,
 		Status:         m.Status,
 		DateCreated:    m.DateCreated,
 		DateTerminated: m.DateTerminated,

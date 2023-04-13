@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/colbee1/jobq"
-	"github.com/colbee1/jobq/repo"
 )
 
 type (
@@ -22,7 +21,7 @@ type (
 	JobItem struct {
 		heapPriority int64 // Used to order items (ie: timestamp)
 		Topic        jobq.Topic
-		Priority     jobq.Priority
+		Priority     jobq.Weight
 		JobID        jobq.ID
 	}
 )
@@ -35,20 +34,6 @@ func newJobQueue() *JobQueue {
 	heap.Init(&jq.queue)
 
 	return jq
-}
-
-func (pq *JobQueue) Stats() repo.TopicStats {
-	pq.mu.RLock()
-	defer pq.mu.RUnlock()
-
-	return repo.TopicStats{
-		DateCreated:          pq.dateCreated,
-		DateLastPush:         pq.dateLastPush,
-		Count:                int64(pq.Len()),
-		PushTotalCount:       pq.pushTotalCount,
-		MaxQueueLen:          pq.maxQueueLen,
-		CurrentQueueCapacity: int64(cap(pq.queue)),
-	}
 }
 
 func (pq *JobQueue) Len() int {
@@ -71,21 +56,15 @@ func (pq *JobQueue) Push(jitem *JobItem) {
 	}
 }
 
-func (pq *JobQueue) Pop(limit int) ([]*JobItem, error) {
-	if limit < 1 {
-		return []*JobItem{}, nil
-	}
-
+func (pq *JobQueue) Pop() *JobItem {
 	pq.mu.Lock()
 	defer pq.mu.Unlock()
 
-	resp := make([]*JobItem, 0, limit)
-	for ; limit > 0 && pq.queue.Len() > 0; limit-- {
-		item := heap.Pop(&pq.queue).(*JobItem)
-		resp = append(resp, item)
+	if pq.queue.Len() == 0 {
+		return nil
 	}
 
-	return resp, nil
+	return heap.Pop(&pq.queue).(*JobItem)
 }
 
 func (pq *JobQueue) Peek() *JobItem {

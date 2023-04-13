@@ -56,7 +56,7 @@ func TestAdapter(t *testing.T) {
 
 	require.Len(job.Logs, 2)
 	require.Equal("test", string(job.Topic))
-	require.Equal(-10, int(job.Priority))
+	require.Equal(-10, int(job.Weight))
 	require.Equal(jobq.JobStatusReady, job.Status)
 	require.Equal(jobq.JobStatusReady, job.Status)
 }

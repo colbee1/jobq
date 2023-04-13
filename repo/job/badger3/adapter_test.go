@@ -16,7 +16,7 @@ func getRepo() (*Adapter, error) {
 	if jobTestRepo == nil {
 		dbPath := "../../../test/db/job-badger3-test"
 
-		if r, err := New(dbPath, Options{DropAll: true}); err != nil {
+		if r, err := New(dbPath, RepositoryOptions{DropDB: true}); err != nil {
 			return nil, err
 		} else {
 			jobTestRepo = r
@@ -72,7 +72,7 @@ func TestAdapterRead(t *testing.T) {
 	require.NoError(err)
 	require.Len(jobs, 1)
 	require.Equal(jobq.JobStatusCreated, jobs[0].Status)
-	require.Equal(jobq.Priority(-100), jobs[0].Priority)
+	require.Equal(jobq.Weight(-100), jobs[0].Weight)
 	require.Equal(jobTestTopic, jobs[0].Topic)
 	require.Equal("test job", jobs[0].Options.Name)
 }
@@ -174,7 +174,7 @@ func TestAdapterReadMultiple(t *testing.T) {
 	expected := &jobq.JobInfo{
 		ID:             jobq.ID(1),
 		Topic:          jobq.Topic(jobTestTopic),
-		Priority:       -100,
+		Weight:         -100,
 		Status:         jobq.JobStatusReady,
 		DateCreated:    info.DateCreated,    // TODO:
 		DateTerminated: info.DateTerminated, // TODO:
