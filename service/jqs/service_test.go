@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	jobq_job_repo "github.com/colbee1/jobq/repo/job/memory"
-	jobq_pq_repo "github.com/colbee1/jobq/repo/pq/memory"
+	repo_job "github.com/colbee1/jobq/repo/job/memory"
+	repo_topic "github.com/colbee1/jobq/repo/topic/memory"
 	"github.com/stretchr/testify/require"
 
 	"github.com/colbee1/jobq"
@@ -15,12 +15,12 @@ import (
 func TestServiceWithMemoryRepos(t *testing.T) {
 	require := require.New(t)
 
-	jobRepo, err := jobq_job_repo.New()
+	jobRepo, err := repo_job.New()
 	require.NoError(err)
 	require.NotNil(jobRepo)
 	defer jobRepo.Close()
 
-	pqRepo, err := jobq_pq_repo.New()
+	pqRepo, err := repo_topic.New()
 	require.NoError(err)
 	require.NotNil(pqRepo)
 	defer pqRepo.Close()

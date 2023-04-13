@@ -5,27 +5,28 @@ import (
 	"time"
 
 	"github.com/colbee1/jobq"
-	"github.com/colbee1/jobq/repo"
+	"github.com/colbee1/jobq/repo/topic"
 )
 
-type IJobQueue interface {
-	// Add a new job.
-	Enqueue(ctx context.Context, topic jobq.Topic, pri jobq.Priority, jo jobq.JobOptions, payload jobq.Payload) (jobq.ID, error)
+//-----------------------------------------------------------------------
+//	Job Service Interface
+//-----------------------------------------------------------------------
 
-	// Reserve up to <limit> jobs.
+type IJobService interface {
+	// Add a new job.
+	Enqueue(ctx context.Context, topic jobq.Topic, w jobq.Weight, jo jobq.JobOptions, payload jobq.Payload) (jobq.ID, error)
+
+	// Reserve up to <limit> jobs until context expiration.
 	Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]IJob, error)
 
-	// Available returns the number of jobs ready to be reserved.
-	Available(ctx context.Context, topic jobq.Topic) (int, error)
+	// Reset resets a job.
+	Reset(ctx context.Context, jids []jobq.ID) error
 
-	// Delayed returns the number of delayed jobs.
-	Delayed(ctx context.Context) (int, error)
-
-	// Topics returns list of created topics
+	// Topics returns list of active topics.
 	Topics(ctx context.Context, offset int, limit int) ([]jobq.Topic, error)
 
-	// TopicStats returns some stats about topic.
-	TopicStats(ctx context.Context, topic jobq.Topic) (repo.TopicStats, error)
+	// TopicStats returns stats about topic.
+	TopicStats(ctx context.Context, topic jobq.Topic) (topic.Stats, error)
 
 	Close() error
 }

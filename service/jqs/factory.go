@@ -2,10 +2,11 @@ package jqs
 
 import (
 	"github.com/colbee1/assertor"
-	"github.com/colbee1/jobq/repo"
+	"github.com/colbee1/jobq/repo/job"
+	"github.com/colbee1/jobq/repo/topic"
 )
 
-func New(jobRepo repo.IJobRepository, pqRepo repo.IJobPriorityQueueRepository) (*Service, error) {
+func New(jobRepo job.IJobRepository, pqRepo topic.ITopicRepository) (*Service, error) {
 	v := assertor.New()
 	v.Assert(jobRepo != nil, "job repository is missing")
 	v.Assert(pqRepo != nil, "job priority queue repository is missing")
@@ -14,19 +15,19 @@ func New(jobRepo repo.IJobRepository, pqRepo repo.IJobPriorityQueueRepository) (
 	}
 
 	s := &Service{
-		jobRepo:   jobRepo,
-		pqRepo:    pqRepo,
-		exitSched: make(chan struct{}, 1),
+		jobRepo:       jobRepo,
+		topicRepo:     pqRepo,
+		stopScheduler: make(chan struct{}, 1),
 	}
 
 	s.wg.Add(1)
-	go s.scheduleDelayedJobs(s.exitSched)
+	go s.scheduler(s.stopScheduler)
 
 	return s, nil
 }
 
 func (s *Service) Close() error {
-	close(s.exitSched)
+	close(s.stopScheduler)
 	s.wg.Wait()
 
 	return nil
