@@ -6,33 +6,37 @@ jobq is a simple embeddable golang package to handle jobs/tasks/xxx asynchronous
 
 ## Features:
 
-- Job can be delayed in time.
-- Jobs are managed by fast priority queue.
-- Jobs can be persisted using durable repository.
-- Jobs are pushed in named queues, called topics.
+- Job are enqueued in weighted (priority) queue named topic. Lower is the weight, higher is the priority.
+- Job can be delayed before enqueued in topic.
+- Job and Topic relies on repository adapter so they can be persisted.
 - Topic creation is on the fly. Just push/pop on it.
+- Simple topic stats when enabling stats collector.
 - Job FSM is simple, only few status: Ready, Delayed, Reserved, Done or Canceled.
-- Simple topic statistics.
-- Retry failed job with configurable exponential backoff.
+- Job API is simple, only few usual methods: Done(), Retry(), Cancel(), Payload(), Logf()
+- Job retry defaults to user-configurable exponential backoff.
 
 ### In progress
 
-- Auto restart job after application crash. Only available with durable job repository.
+- Auto restart job after application crash when using a durable job adapter.
 
 ### Planned
 
 - Job timeout.
-- Create LRU cache service in front of job repository to amortize read request.
 - Auto cleanup unused topics.
+
+# Design
+
+![design](design.svg)
 
 ## Available job repositories
 
-- repo/job/memory - volatile in memory job storage. Does not support transaction.
+- repo/job/memory - volatile in-memory storage. Does not support transaction.
 - repo/job/badger3 - durable file system storage. Support transactions.
 
-## Available priority queue repositories
+## Available topic repositories
 
-- repo/pq/memory - in memory fast priority queues.
+- repo/pq/memory - volatile in-memory fast priority queues. Does not support transaction.
+- repo/pq/badger3 - durable file system storage. Support transactions.
 
 ## Examples
 
