@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/colbee1/jobq"
-	"github.com/colbee1/jobq/repo"
-	job_repo "github.com/colbee1/jobq/repo/job/badger3"
-	pq_repo "github.com/colbee1/jobq/repo/pq/memory"
+	"github.com/colbee1/jobq/repo/job"
+	job_adapter "github.com/colbee1/jobq/repo/job/badger3"
+	topic_adapter "github.com/colbee1/jobq/repo/topic/badger3"
 	"github.com/colbee1/jobq/service"
 	"github.com/colbee1/jobq/service/jqs"
 )
@@ -25,19 +25,24 @@ func main() {
 }
 
 func run() error {
-	jobRepo, err := job_repo.New("../../test/db/examples/ready-retry-cancel", job_repo.Options{DropAll: true})
+	jaOptions := job_adapter.RepositoryOptions{DropDB: true}
+	jobRepo, err := job_adapter.New("../../test/db/examples/ready-retry-cancel-job", jaOptions)
 	if err != nil {
 		return err
 	}
 	defer jobRepo.Close()
 
-	pqRepo, err := pq_repo.New()
+	taOptions := topic_adapter.RepositoryOptions{
+		StatsCollector: true,
+		DropDB:         true,
+	}
+	topicRepo, err := topic_adapter.New("../../test/db/examples/ready-retry-cancel-topic", taOptions)
 	if err != nil {
 		return err
 	}
-	defer pqRepo.Close()
+	defer topicRepo.Close()
 
-	jq, err := jqs.New(jobRepo, pqRepo)
+	jq, err := jqs.New(jobRepo, topicRepo)
 	if err != nil {
 		return err
 	}
@@ -66,7 +71,7 @@ func run() error {
 	return nil
 }
 
-func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
+func consumer(jq service.IJobService, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	fmt.Printf("Wait at most 5 seconds for 1 job...\n")
@@ -98,19 +103,25 @@ func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
 		return
 	}
 	fmt.Printf("Got job: %v, then cancel\n", jobs)
-	jobs[0].Cancel()
+	job := jobs[0]
+	job.Cancel()
 
-	fmt.Printf("Wait at most 0 seconds for 10 jobs...\n")
-	jobs, err = jq.Reserve(context.Background(), Topic, 10)
+	time.Sleep(500 * time.Microsecond)
+	jq.Reset(context.Background(), []jobq.ID{job.ID()})
+
+	fmt.Printf("Wait at most 2 seconds for 10 jobs...\n")
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	jobs, err = jq.Reserve(ctx, Topic, 10)
 	if err != nil {
 		panic(err)
 	}
-	if len(jobs) != 0 {
-		panic("len(jobs) must be zero")
+	if len(jobs) != 1 {
+		panic("len(jobs) must be 1")
 	}
 }
 
-func showByStatus(repo repo.IJobRepository) error {
+func showByStatus(repo job.IJobRepository) error {
 	tx, err := repo.NewTransaction()
 	if err != nil {
 		return err

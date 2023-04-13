@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/colbee1/jobq"
-	job_repo "github.com/colbee1/jobq/repo/job/badger3"
-	pq_repo "github.com/colbee1/jobq/repo/pq/memory"
+	job_adapter "github.com/colbee1/jobq/repo/job/badger3"
+	topic_adapter "github.com/colbee1/jobq/repo/topic/badger3"
 	"github.com/colbee1/jobq/service"
 	"github.com/colbee1/jobq/service/jqs"
 )
@@ -27,19 +27,21 @@ func main() {
 }
 
 func run() error {
-	jobRepo, err := job_repo.New("../../test/db/examples/batch-consummer", job_repo.Options{DropAll: true})
+	jobRepo, err := job_adapter.New("../../test/db/examples/batch-consummer-job",
+		job_adapter.RepositoryOptions{DropDB: true})
 	if err != nil {
 		return err
 	}
 	defer jobRepo.Close()
 
-	pqRepo, err := pq_repo.New()
+	topicRepo, err := topic_adapter.New("../../test/db/examples/batch-consummer-topic",
+		topic_adapter.RepositoryOptions{DropDB: true, StatsCollector: true})
 	if err != nil {
 		return err
 	}
-	defer pqRepo.Close()
+	defer topicRepo.Close()
 
-	jqSvc, err := jqs.New(jobRepo, pqRepo)
+	jqSvc, err := jqs.New(jobRepo, topicRepo)
 	if err != nil {
 		return err
 	}
@@ -89,6 +91,14 @@ func run() error {
 	}
 	fmt.Printf("\n%d jobs are in status Delayed\n", len(jids))
 
+	// List job Ready
+	//
+	jids, err = jqSvc.FindByStatus(context.Background(), jobq.JobStatusReady, 0, 1000)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("\n%d jobs are in status Ready\n", len(jids))
+
 	// Show topic stats
 	//
 	list, err := jqSvc.Topics(context.Background(), 0, 100)
@@ -106,7 +116,7 @@ func run() error {
 	return nil
 }
 
-func producer(jq service.IJobQueue) {
+func producer(jq service.IJobService) {
 	prng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	upper := math.MaxInt16
 	lower := math.MinInt16
@@ -114,7 +124,7 @@ func producer(jq service.IJobQueue) {
 	for i := 0; i < 100; i++ {
 		time.Sleep(time.Duration(prng.Intn(150)) * time.Millisecond)
 
-		priority := jobq.Priority(prng.Intn(upper-lower) + lower) // -10 is a higher priority than 10
+		priority := jobq.Weight(prng.Intn(upper-lower) + lower) // -10 is a higher priority than 10
 		jid, err := jq.Enqueue(context.Background(), Topic, priority, jobq.JobOptions{}, jobq.Payload("email@domain.tld"))
 		if err != nil {
 			fmt.Printf("Enqueue error: %v\n", err)
@@ -125,7 +135,7 @@ func producer(jq service.IJobQueue) {
 
 }
 
-func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
+func consumer(jq service.IJobService, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	batchTicker := time.NewTicker(2 * time.Second)
@@ -148,8 +158,8 @@ func consumer(jq service.IJobQueue, wg *sync.WaitGroup) {
 		batch := []string{}
 		for _, job := range jobs {
 			info, _ := job.Unwrap()
-			pri := info.Priority
-			batch = append(batch, fmt.Sprintf("Job%d(pri=%d)", job.ID(), pri))
+			pri := info.Weight
+			batch = append(batch, fmt.Sprintf("Job #%d(pri=%d)", job.ID(), pri))
 			job.Done()
 		}
 
