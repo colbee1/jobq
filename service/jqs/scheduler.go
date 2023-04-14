@@ -57,8 +57,7 @@ func (s *Service) scheduleDelayedJobs(running *atomic.Bool) {
 func (s *Service) scheduleExpiredReservations(running *atomic.Bool) {
 	defer running.Store(false)
 
-	fmt.Printf("------> %v: schedule expired reservation started\n", time.Now())
-	// time.Sleep(4 * time.Second)
+	// TODO
 }
 
 func (s *Service) scheduler(exit chan struct{}) {
