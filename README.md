@@ -1,8 +1,7 @@
 # jobq
 
-!! Early development - work in progress - only for comments !!
-
-jobq is a simple embeddable golang package to handle jobs/tasks/things asynchronously without external dependencies.
+jobq is a simple golang library to handle jobs/tasks/things asynchronously without external dependencies.
+You can build your own level of service by using volatil (memory) or durable (persistent) backend for storing jobs and topics.
 
 ## Features
 
@@ -85,12 +84,12 @@ func handleJobs(jobs []service.IJob) {
 
 ### In progress
 
-- Auto restart job after application crash when using a durable job adapter and a memory topic adapter.
+- Reservation timeout.
 
 ### Planned
 
-- Job timeout.
 - Auto cleanup unused topics.
+- Auto restart job after application crash when using a durable jobs repository but a volatil one for topics.
 
 ### Available job repositories
 
