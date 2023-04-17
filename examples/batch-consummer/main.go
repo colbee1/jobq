@@ -160,7 +160,9 @@ func consumer(jq service.IJobService, wg *sync.WaitGroup) {
 			info, _ := job.Unwrap()
 			pri := info.Weight
 			batch = append(batch, fmt.Sprintf("Job #%d(pri=%d)", job.ID(), pri))
-			job.Done()
+			if err := job.Done(); err != nil {
+				panic(err)
+			}
 		}
 
 		fmt.Printf("\n%s: Process batch of %d jobs: %s\n\n", t.Format(time.RFC3339), len(batch), strings.Join(batch, ", "))
