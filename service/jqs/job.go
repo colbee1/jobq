@@ -102,8 +102,10 @@ func (j *Job) done(tx job.IJobRepositoryTransaction) error {
 				return fmt.Errorf("%w: status must be Reserved to be switched to Done", service.ErrInvalidStatus)
 			}
 
-			if job.DatesReserved[len(job.DatesReserved)-1] != j.dateReserved {
-				return fmt.Errorf("%w: Job has been requeued since it's reservation. Probably because of reservation timeout", service.ErrInvalidStatus)
+			lastReservation := job.DatesReserved[len(job.DatesReserved)-1]
+			if lastReservation.Compare(j.dateReserved) != 0 {
+				return fmt.Errorf("%w: Job has been requeued (%v != %v) since it's reservation. Probably because of reservation timeout",
+					service.ErrInvalidStatus, lastReservation, j.dateReserved)
 			}
 
 			job.Status = jobq.JobStatusDone
@@ -122,9 +124,9 @@ func (j *Job) Done() error {
 
 	if err := j.done(tx); err != nil {
 		return err
-	} else {
-		return tx.Commit()
 	}
+
+	return tx.Commit()
 }
 
 func (j *Job) retry(tx job.IJobRepositoryTransaction, overrideBackoff time.Duration) error {
