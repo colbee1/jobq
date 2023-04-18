@@ -200,3 +200,7 @@ func (s *Service) FindByStatus(ctx context.Context, status jobq.Status, offset i
 
 	return tx.FindByStatus(ctx, status, offset, limit)
 }
+
+func (s *Service) Status(ctx context.Context, jid jobq.ID) (jobq.Status, error) {
+	return s.jobRepo.Status(ctx, jid)
+}

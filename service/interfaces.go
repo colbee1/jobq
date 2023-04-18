@@ -19,6 +19,9 @@ type IJobService interface {
 	// Reserve up to <limit> jobs until context expiration.
 	Reserve(ctx context.Context, topic jobq.Topic, limit int) ([]IJob, error)
 
+	// Get current job status
+	Status(ctx context.Context, jid jobq.ID) ([]jobq.Status, error)
+
 	// Reset resets a job.
 	Reset(ctx context.Context, jids []jobq.ID) error
 

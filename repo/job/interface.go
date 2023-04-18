@@ -10,6 +10,9 @@ type IJobRepository interface {
 	// NewTransaction Creates a new transaction.
 	NewTransaction() (IJobRepositoryTransaction, error)
 
+	// Status returns the current status for <jid>.
+	Status(ctx context.Context, jid jobq.ID) (jobq.Status, error)
+
 	// Durable returns true when repository can survive to an application crash.
 	Durable() bool
 

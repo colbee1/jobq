@@ -1,6 +1,7 @@
 package badger3
 
 import (
+	repo "github.com/colbee1/jobq/repo/job"
 	"github.com/dgraph-io/badger/v3"
 )
 
@@ -48,4 +49,11 @@ func (a *Adapter) Close() error {
 	}
 
 	return nil
+}
+
+func (a *Adapter) NewTransaction() (repo.IJobRepositoryTransaction, error) {
+	return &Transaction{
+		a:  a,
+		tx: a.db.NewTransaction(true),
+	}, nil
 }

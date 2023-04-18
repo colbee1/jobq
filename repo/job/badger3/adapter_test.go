@@ -128,10 +128,9 @@ func TestAdapterGetStatus2(t *testing.T) {
 	require.NotNil(tx)
 	defer tx.Close()
 
-	jobs, err := tx.Read(context.Background(), []jobq.ID{jobq.ID(1)})
+	status, err := repo.Status(context.Background(), jobq.ID(1))
 	require.NoError(err)
-	require.Len(jobs, 1)
-	require.Equal(jobq.JobStatusReady, jobs[0].Status)
+	require.Equal(jobq.JobStatusReady, status)
 }
 
 func TestAdapterFindByStatus(t *testing.T) {
